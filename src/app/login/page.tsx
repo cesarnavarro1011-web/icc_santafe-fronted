@@ -1,5 +1,6 @@
 "use client"
-import { useState } from "react"
+import { Suspense, useState } from "react"
+import { Toaster } from "sonner"
 import { RecoveryForm } from "@/components/recovery-form"
 import { LoginForm } from "@/components/login-form"
 import Image from "next/image"
@@ -27,7 +28,9 @@ export default function LoginPage() {
           <div className="w-full max-w-xs">
             {/* Pasar el estado formType como prop a cada formulario */}
             {formType === "login" ? (
-              <LoginForm setFormType={setFormType} />
+              <Suspense>
+                <LoginForm setFormType={setFormType} />
+              </Suspense>
             ) : (
               <RecoveryForm setFormType={setFormType} />
             )}
@@ -38,13 +41,14 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-gradient-to-r from-black via-black/0 to-transparent z-10" />
         {/* Imagen */}
         <Image
-          src="/img/content-marketing/antropometria.jpg"
-          alt="Image"
-          width={500}
-          height={500}
+          src="/images/DSC00630.jpg"
+          alt="Iglesia Cuadrangular Santa Fe"
+          width={1200}
+          height={1200}
           className="absolute inset-0 h-full w-full object-cover"
         />
       </div>
+      <Toaster richColors position="top-right" />
     </div>
   )
 }

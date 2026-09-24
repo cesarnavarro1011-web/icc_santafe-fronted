@@ -1,0 +1,517 @@
+// ============================================================
+//  Espacio de estudio · ICC Santa Fe
+//  Migración del sistema Google Apps Script + Sheets a Postgres.
+//  Cada modelo indica la hoja de origen del Excel.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ────────────────────────────────────────────────────
+
+enum Rol {
+  SUPERADMIN
+  PASTOR
+  SUPERVISOR
+  LIDER
+  MAESTRO
+  ESTUDIANTE
+}
+
+enum EstadoRegistro {
+  ACTIVO
+  INACTIVO
+}
+
+enum EstadoCivil {
+  SOLTERO
+  CASADO
+  DIVORCIADO
+  VIUDO
+  UNION_LIBRE
+}
+
+enum TipoBautismo {
+  AGUA
+  ESPIRITU
+}
+
+enum TipoServicio {
+  DOMINGO
+  MIERCOLES
+  GV
+  ESPECIAL
+  OTRO
+}
+
+enum TipoActividad {
+  TAREA
+  EXAMEN
+  MATERIAL
+  CLASE
+}
+
+enum EstadoMatricula {
+  EN_PROGRESO
+  APROBADO
+  REPROBADO
+  VENCIDO
+  RETIRADO
+}
+
+enum EstadoEntrega {
+  ENVIADA
+  APROBADA
+  REPROBADA
+  DEVUELTA
+}
+
+enum EstadoPago {
+  PENDIENTE
+  ABONO
+  COMPLETADO
+  EXENTO
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TRANSFERENCIA
+  NEQUI
+  DAVIPLATA
+  EXENTO
+}
+
+enum RolMaestro {
+  TITULAR
+  AUXILIAR
+}
+
+enum EstadoCertificado {
+  EN_FIRMA
+  EMITIDO
+  ANULADO
+}
+
+enum PropositoOtp {
+  CAMBIO_PASSWORD
+}
+
+// ── Personas y acceso ────────────────────────────────────────
+
+/// Hoja "Fieles"
+model Fiel {
+  id              String         @id @default(cuid())
+  codigo          String         @unique // "F-1004355591" (ID del sistema anterior)
+  nombre          String
+  apellido        String
+  fechaNacimiento DateTime?      @db.Date
+  estadoCivil     EstadoCivil?
+  bautizado       Boolean        @default(false)
+  celular         String?
+  direccion       String?
+  correo          String?
+  estado          EstadoRegistro @default(ACTIVO)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  usuario                Usuario?
+  bautismos              Bautismo[]
+  asistencias            AsistenciaCongregacional[]
+  inscripciones          Inscripcion[]
+  matriculas             Matricula[]                @relation("MatriculaEstudiante")
+  matriculasComoMaestro  Matricula[]                @relation("MatriculaMaestro")
+  matriculasSupervisa    Matricula[]                @relation("MatriculaSupervisor")
+  asignacionesMaestro    AsignacionMaestro[]
+  asignacionesSupervisor AsignacionSupervisor[]
+  entregas               Entrega[]                  @relation("EntregaEstudiante")
+  entregasRevisadas      Entrega[]                  @relation("EntregaRevisor")
+  notas                  Nota[]
+  intentosExamen         IntentoExamen[]
+  asistenciasCurso       AsistenciaCurso[]
+  certificados           Certificado[]              @relation("CertificadoEstudiante")
+  areas                  MiembroArea[]
+  eventos                EventoEspecial[]
+
+  @@index([apellido, nombre])
+}
+
+/// Hoja "Credenciales_Acceso"
+model Usuario {
+  id                  String    @id @default(cuid())
+  fielId              String    @unique
+  fiel                Fiel      @relation(fields: [fielId], references: [id], onDelete: Cascade)
+  usuario             String    @unique
+  /// bcrypt. Los hashes SHA-256 del sistema viejo se guardan con prefijo "sha256:"
+  /// y se convierten a bcrypt en el primer inicio de sesión exitoso.
+  passwordHash        String
+  rol                 Rol       @default(ESTUDIANTE)
+  debeCambiarPassword Boolean   @default(true) // columna "Temp"
+  activo              Boolean   @default(true)
+  firmaPath           String? // firma digital PNG (ruta relativa en STORAGE_DIR)
+  ultimoAcceso        DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  otps OtpCode[]
+}
+
+/// Reemplaza CacheService "OTP_CHANGE_<id>"
+model OtpCode {
+  id        String       @id @default(cuid())
+  usuarioId String
+  usuario   Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  codeHash  String
+  proposito PropositoOtp
+  intentos  Int          @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime     @default(now())
+
+  @@index([usuarioId, proposito])
+}
+
+// ── Vida congregacional ──────────────────────────────────────
+
+/// Hoja "Bautismos"
+model Bautismo {
+  id              String       @id @default(cuid())
+  fielId          String
+  fiel            Fiel         @relation(fields: [fielId], references: [id], onDelete: Cascade)
+  fecha           DateTime     @db.Date
+  ministro        String?
+  lugar           String?
+  tipo            TipoBautismo @default(AGUA)
+  certificadoPath String?
+  createdAt       DateTime     @default(now())
+}
+
+/// Hoja "Asistencias" (asistencia a servicios de la iglesia)
+model AsistenciaCongregacional {
+  id              String       @id @default(cuid())
+  fecha           DateTime     @default(now())
+  fielId          String? // null = invitado
+  fiel            Fiel?        @relation(fields: [fielId], references: [id], onDelete: SetNull)
+  nombreInvitado  String?
+  servicio        TipoServicio
+  registradoPorId String?
+  createdAt       DateTime     @default(now())
+
+  @@index([fecha])
+}
+
+/// Hoja "Areas_Inscritas"
+model Area {
+  id       String         @id @default(cuid())
+  nombre   String         @unique
+  estado   EstadoRegistro @default(ACTIVO)
+  miembros MiembroArea[]
+}
+
+model MiembroArea {
+  id        String   @id @default(cuid())
+  fielId    String
+  fiel      Fiel     @relation(fields: [fielId], references: [id], onDelete: Cascade)
+  areaId    String
+  area      Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  cargo     String?
+  createdAt DateTime @default(now())
+
+  @@unique([fielId, areaId])
+}
+
+/// Hoja "Eventos_Especiales"
+model EventoEspecial {
+  id          String    @id @default(cuid())
+  fielId      String
+  fiel        Fiel      @relation(fields: [fielId], references: [id], onDelete: Cascade)
+  tipo        String?
+  nombre      String?
+  fechaInicio DateTime?
+  lugar       String?
+  estado      String?
+  createdAt   DateTime  @default(now())
+}
+
+// ── Académico ────────────────────────────────────────────────
+
+/// Hoja "Cursos_Catalogo"
+model Curso {
+  id           String         @id @default(cuid())
+  codigo       String         @unique // "TEOL-1"
+  nombre       String
+  nivel        Int?
+  descripcion  String?
+  estado       EstadoRegistro @default(ACTIVO)
+  duracionDias Int            @default(90)
+  costo        Decimal        @default(0) @db.Decimal(12, 2)
+  imagenPath   String? // portada del curso (disco local); sin ella se usa el degradado
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  actividades   Actividad[]
+  maestros      AsignacionMaestro[]
+  supervisores  AsignacionSupervisor[]
+  inscripciones Inscripcion[]
+  matriculas    Matricula[]
+  preguntas     Pregunta[]
+  sesiones      SesionClase[]
+  certificados  Certificado[]
+}
+
+/// Hoja "Catalogo_Actividades"
+model Actividad {
+  id            String        @id @default(cuid())
+  codigo        String        @unique // "ACT-001"
+  cursoId       String
+  curso         Curso         @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  nivel         Int           @default(1)
+  tipo          TipoActividad @default(TAREA)
+  nombre        String
+  notaMax       Float         @default(10)
+  peso          Float         @default(100) // Porcentaje_Peso
+  linkMaterial  String?
+  materialPath  String? // material subido al disco local
+  instrucciones String?
+  orden         Int           @default(0)
+  createdAt     DateTime      @default(now())
+
+  entregas  Entrega[]
+  notas     Nota[]
+  intentos  IntentoExamen[]
+  preguntas Pregunta[]
+
+  @@index([cursoId, nivel])
+}
+
+/// Hoja "Maestros_Asignados"
+model AsignacionMaestro {
+  id        String     @id @default(cuid())
+  fielId    String
+  fiel      Fiel       @relation(fields: [fielId], references: [id], onDelete: Cascade)
+  cursoId   String
+  curso     Curso      @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  nivel     Int? // null = todos los niveles
+  rol       RolMaestro @default(TITULAR)
+  createdAt DateTime   @default(now())
+
+  @@unique([fielId, cursoId, nivel])
+}
+
+/// Hoja "Supervisores_Niveles"
+model AsignacionSupervisor {
+  id              String         @id @default(cuid())
+  fielId          String
+  fiel            Fiel           @relation(fields: [fielId], references: [id], onDelete: Cascade)
+  cursoId         String
+  curso           Curso          @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  nivelAutorizado String         @default("Todos")
+  estado          EstadoRegistro @default(ACTIVO)
+  createdAt       DateTime       @default(now())
+
+  @@unique([fielId, cursoId])
+}
+
+/// Hoja "Inscripciones_Pagos"
+model Inscripcion {
+  id              String      @id @default(cuid())
+  codigo          String      @unique // "INS-382586"
+  fielId          String
+  fiel            Fiel        @relation(fields: [fielId], references: [id], onDelete: Cascade)
+  cursoId         String
+  curso           Curso       @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  fecha           DateTime    @default(now())
+  costoTotal      Decimal     @default(0) @db.Decimal(12, 2)
+  montoPagado     Decimal     @default(0) @db.Decimal(12, 2)
+  estadoPago      EstadoPago  @default(PENDIENTE)
+  metodoPago      MetodoPago?
+  comprobantePath String?
+  registradoPorId String?
+  createdAt       DateTime    @default(now())
+
+  @@index([fielId])
+}
+
+/// Hojas "Control_Academico" + "Cursos_Historico" (unificadas)
+model Matricula {
+  id                String          @id @default(cuid())
+  codigo            String          @unique // "MAT-34385477"
+  fielId            String
+  fiel              Fiel            @relation("MatriculaEstudiante", fields: [fielId], references: [id], onDelete: Cascade)
+  cursoId           String
+  curso             Curso           @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  maestroId         String?
+  maestro           Fiel?           @relation("MatriculaMaestro", fields: [maestroId], references: [id], onDelete: SetNull)
+  supervisorId      String?
+  supervisor        Fiel?           @relation("MatriculaSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
+  fechaInicio       DateTime        @default(now())
+  fechaVencimiento  DateTime?
+  progreso          Int             @default(0) // Progreso_%
+  notaFinal         Float           @default(0)
+  estado            EstadoMatricula @default(EN_PROGRESO)
+  aprobadoMaestroAt DateTime? // antes "Aprobado_Maestro" en Cursos_Historico
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  entregas     Entrega[]
+  notas        Nota[]
+  intentos     IntentoExamen[]
+  certificados Certificado[]
+
+  @@unique([fielId, cursoId])
+}
+
+/// Hoja "Entregas_Tareas"
+model Entrega {
+  id            String        @id @default(cuid())
+  matriculaId   String
+  matricula     Matricula     @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+  fielId        String
+  fiel          Fiel          @relation("EntregaEstudiante", fields: [fielId], references: [id], onDelete: Cascade)
+  actividadId   String
+  actividad     Actividad     @relation(fields: [actividadId], references: [id], onDelete: Cascade)
+  archivoPath   String? // PDF en disco local
+  archivoNombre String?
+  linkExterno   String? // entregas migradas con link de Drive
+  estado        EstadoEntrega @default(ENVIADA)
+  comentario    String?
+  revisadoPorId String?
+  revisadoPor   Fiel?         @relation("EntregaRevisor", fields: [revisadoPorId], references: [id], onDelete: SetNull)
+  revisadoAt    DateTime?
+  fechaEntrega  DateTime      @default(now())
+
+  nota Nota?
+
+  @@index([actividadId, estado])
+}
+
+/// Hoja "Notas_Detalle"
+model Nota {
+  id              String         @id @default(cuid())
+  matriculaId     String
+  matricula       Matricula      @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+  fielId          String
+  fiel            Fiel           @relation(fields: [fielId], references: [id], onDelete: Cascade)
+  actividadId     String
+  actividad       Actividad      @relation(fields: [actividadId], references: [id], onDelete: Cascade)
+  entregaId       String?        @unique
+  entrega         Entrega?       @relation(fields: [entregaId], references: [id], onDelete: SetNull)
+  intentoExamenId String?        @unique
+  intentoExamen   IntentoExamen? @relation(fields: [intentoExamenId], references: [id], onDelete: SetNull)
+  nota            Float
+  notaMax         Float          @default(10)
+  comentario      String?
+  fecha           DateTime       @default(now())
+
+  /// Una sola nota vigente por actividad y matrícula (la última calificación reemplaza la anterior)
+  @@unique([matriculaId, actividadId])
+}
+
+/// Hoja "Banco_Preguntas"
+model Pregunta {
+  id                String     @id @default(cuid())
+  codigo            String     @unique // "PQ-123456"
+  cursoId           String
+  curso             Curso      @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  nivel             Int        @default(1)
+  actividadId       String? // examen específico (opcional)
+  actividad         Actividad? @relation(fields: [actividadId], references: [id], onDelete: SetNull)
+  pregunta          String
+  respuestaCorrecta String
+  puntos            Float      @default(1)
+  createdAt         DateTime   @default(now())
+
+  @@index([cursoId, nivel])
+}
+
+/// Antes: fila "Examen" en Entregas_Tareas con el detalle en JSON
+model IntentoExamen {
+  id              String    @id @default(cuid())
+  matriculaId     String
+  matricula       Matricula @relation(fields: [matriculaId], references: [id], onDelete: Cascade)
+  fielId          String
+  fiel            Fiel      @relation(fields: [fielId], references: [id], onDelete: Cascade)
+  actividadId     String
+  actividad       Actividad @relation(fields: [actividadId], references: [id], onDelete: Cascade)
+  /// [{ preguntaId, pregunta, respuestaCorrecta, respuesta, puntos, correcto }]
+  detalle         Json
+  puntosObtenidos Float
+  puntosTotal     Float
+  notaAutomatica  Float
+  notaManual      Float?
+  motivoEdicion   String?
+  editadoPorId    String?
+  createdAt       DateTime  @default(now())
+
+  nota Nota?
+
+  @@index([actividadId])
+}
+
+/// Hoja "Control_Asistencias_Cursos" (normalizada: una sesión = fecha + nivel)
+model SesionClase {
+  id          String   @id @default(cuid())
+  cursoId     String
+  curso       Curso    @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  nivel       Int      @default(1)
+  fecha       DateTime @db.Date
+  tema        String?
+  creadaPorId String?
+  createdAt   DateTime @default(now())
+
+  asistencias AsistenciaCurso[]
+
+  @@unique([cursoId, nivel, fecha])
+}
+
+model AsistenciaCurso {
+  id        String      @id @default(cuid())
+  sesionId  String
+  sesion    SesionClase @relation(fields: [sesionId], references: [id], onDelete: Cascade)
+  fielId    String
+  fiel      Fiel        @relation(fields: [fielId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@unique([sesionId, fielId])
+}
+
+/// Hoja "Certificados_Emitidos". Flujo: Maestro → Supervisor → Pastor → PDF
+model Certificado {
+  id                String            @id @default(cuid())
+  codigo            String            @unique // "CERT-12345678"
+  fielId            String
+  fiel              Fiel              @relation("CertificadoEstudiante", fields: [fielId], references: [id], onDelete: Cascade)
+  cursoId           String
+  curso             Curso             @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  matriculaId       String?
+  matricula         Matricula?        @relation(fields: [matriculaId], references: [id], onDelete: SetNull)
+  firmaMaestroId    String?
+  firmaMaestroAt    DateTime?
+  firmaSupervisorId String?
+  firmaSupervisorAt DateTime?
+  firmaPastorId     String?
+  firmaPastorAt     DateTime?
+  estado            EstadoCertificado @default(EN_FIRMA)
+  pdfPath           String?
+  linkExterno       String? // diplomas migrados desde Drive
+  emitidoAt         DateTime?
+  createdAt         DateTime          @default(now())
+
+  @@unique([fielId, cursoId])
+}
+
+/// Hoja "Log_Envios" (correos que no se pudieron enviar)
+model LogEnvio {
+  id        String   @id @default(cuid())
+  destino   String?
+  asunto    String
+  tipo      String
+  estado    String   @default("PENDIENTE")
+  error     String?
+  createdAt DateTime @default(now())
+}

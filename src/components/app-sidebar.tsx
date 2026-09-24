@@ -1,195 +1,134 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import {
-  AudioWaveform,
-  Bot,
-  Command,
-  Frame,
-  GalleryVerticalEnd,
-  Map,
-  PieChart,
-  SquareTerminal,
+  Award,
+  Book,
+  BookOpen,
+  CalendarCheck,
+  CheckCheck,
+  CircleHelp,
+  ClipboardList,
+  CreditCard,
+  Droplets,
+  Home,
+  Inbox,
+  KeyRound,
+  Presentation,
+  ShieldCheck,
+  UserCog,
+  Users,
+  type LucideIcon,
 } from "lucide-react"
 
-import { NavMain } from "@/components/nav-main"
-import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
+import { NavCursos } from "@/components/workspace/nav-cursos"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
   SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import type { NavSection } from "@/lib/roles"
+import type { CursoMenu } from "@/server/dashboards"
 
-// This is sample data.
-const data = {
-  user: {
-    name: "Ptr. Nando Rincón",
-    email: "pastoral@iccsantafe.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
-    },
-  ],
-  navMain: [
-    {
-      title: "Pastoral",
-      url: "#",
-      icon: SquareTerminal, 
-      isActive: true, 
-      items: [
-        {
-          title: "Aprobación de Cursos",
-          url: "#",
-        },
-        {
-          title: "Creación de Cursos",
-          url: "#",
-        },
-        {
-          title: "Cronograma de eventos",
-          url: "#",
-        },
-        {
-          title: "Dashboard",
-          url: "#",
-        },
-        {
-          title: "Ingresos y egresos",
-          url: "#",
-        },
-        {
-          title: "Miembros",
-          url: "#",
-        },
-        {
-          title: "visitas",
-          url: "#",
-        },
-        {
-          title: "Peticiones Recibidas",
-          url: "#",
-        },
-        {
-          title: "Permisos y Roles",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Lideres",
-      url: "#",
-      icon: SquareTerminal, 
-      isActive: true, 
-      items: [
-        {
-          title: "Cronograma de eventos",
-          url: "#",
-        },
-        {
-          title: "Dashboard",
-          url: "#",
-        },
-        {
-          title: "Ofrendas",
-          url: "#",
-        },
-        {
-          title: "Miembros",
-          url: "#",
-        },
-        {
-          title: "Seguimiento de visitas",
-          url: "#",
-        },
-        {
-          title: "Peticiones Recibidas",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Gestores de Contenido",
-      url: "#",
-      icon: Bot,
-      items: [
-        {
-          title: "Portafolio Web",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Profesores",
-      url: "#",
-      icon: Bot,
-      items: [
-        {
-          title: "Estudiantes",
-          url: "#",
-        },
-        {
-          title: "Tareas",
-          url: "#",
-        },
-        {
-          title: "Examenes",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Cursos Bíblicos",
-      url: "#",
-      icon: Bot,
-      items: [
-        {
-          title: "Vida Abudante",
-          url: "#",
-        },
-        {
-          title: "Discipulado",
-          url: "#",
-        },
-        {
-          title: "Instituto Bíblico",
-          url: "#",
-        },
-      ],
-    },
-  ],
+const ICONOS: Record<string, LucideIcon> = {
+  home: Home,
+  users: Users,
+  "calendar-check": CalendarCheck,
+  droplets: Droplets,
+  "credit-card": CreditCard,
+  book: Book,
+  "user-cog": UserCog,
+  "circle-help": CircleHelp,
+  presentation: Presentation,
+  "clipboard-list": ClipboardList,
+  inbox: Inbox,
+  "check-check": CheckCheck,
+  "shield-check": ShieldCheck,
+  award: Award,
+  "book-open": BookOpen,
+  "key-round": KeyRound,
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+type Props = React.ComponentProps<typeof Sidebar> & {
+  nav: NavSection[]
+  /** Cursos inscritos del usuario, se listan como grupo "Mis cursos" */
+  cursos: CursoMenu[]
+  /** Estudiante: los cursos van justo después de "General" */
+  cursosPrimero: boolean
+  user: { name: string; email: string | null; rolLabel: string; codigo: string }
+}
+
+export function AppSidebar({ nav, cursos, cursosPrimero, user, ...props }: Props) {
+  const pathname = usePathname()
+  const activo = (href: string) => (href === "/workspace" ? pathname === href : pathname.startsWith(href))
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" asChild>
+              <Link href="/workspace">
+                <Image src="/images/logo.jpg" alt="ICC Santa Fe" width={32} height={32} className="size-8 rounded-lg object-cover" />
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold">ICC Santa Fe</span>
+                  <span className="text-muted-foreground truncate text-xs">Espacio de estudio · {user.rolLabel}</span>
+                </div>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        {nav.map((section, i) => (
+          <React.Fragment key={section.title}>
+            {!cursosPrimero && cursos.length > 0 && section.title === "Personal" && <MisCursos cursos={cursos} />}
+            <SidebarGroup>
+              <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
+              <SidebarMenu>
+                {section.items.map((item) => {
+                  const Icon = ICONOS[item.icon] ?? Home
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton asChild isActive={activo(item.href)} tooltip={item.label}>
+                        <Link href={item.href}>
+                          <Icon />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroup>
+            {cursosPrimero && i === 0 && <MisCursos cursos={cursos} />}
+          </React.Fragment>
+        ))}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+  )
+}
+
+function MisCursos({ cursos }: { cursos: CursoMenu[] }) {
+  // useSearchParams (resaltar la sección abierta) necesita un límite de Suspense
+  return (
+    <React.Suspense>
+      <NavCursos cursos={cursos} />
+    </React.Suspense>
   )
 }

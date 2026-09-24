@@ -1,5 +1,4 @@
 "use client";
-import axiosInstance from "@/lib/axiosInstance";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,24 +7,18 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Eye, EyeOff } from "lucide-react"; // Iconos ver/ocultar
 
 interface LoginFormProps {
   setFormType: React.Dispatch<React.SetStateAction<"login" | "recovery">>;
 }
 
+// Igual que el sistema anterior: se entra con usuario o ID de fiel (F-...). También se acepta el correo.
 const loginSchema = z.object({
-  email: z
-    .string()
-    .trim()
-    .min(1, "El correo es obligatorio")
-    .email("Formato de correo inválido")
-    .transform((v) => v.toLowerCase()),
-  password: z
-    .string()
-    .min(8, "Mínimo 8 caracteres")
-    .regex(/(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s])/, "Debe incluir mayúscula, número y símbolo"),
+  identificador: z.string().trim().min(1, "Ingresa tu usuario, ID o correo"),
+  password: z.string().min(1, "Ingresa tu contraseña"),
 });
 
 type FormData = z.infer<typeof loginSchema>;
@@ -48,6 +41,7 @@ export function LoginForm({
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
 
   const onSubmit = useCallback(
@@ -55,20 +49,18 @@ export function LoginForm({
       setLoading(true);
       setErrorMessage("");
       setSuccess(false);
-      try {
-        const response = await axiosInstance.post("/auth/login", data);
-        const { user } = response.data;
-        if (user) {
-          setSuccess(true);
-          router.push("/dashboard/panel-control");
-        }
-      } catch (error: any) {
-        setErrorMessage(error.response?.data?.message || "Error desconocido");
-      } finally {
-        setLoading(false);
+      const res = await signIn("credentials", { ...data, redirect: false });
+      setLoading(false);
+      if (!res || res.error) {
+        setErrorMessage(res?.error === "CredentialsSignin" ? "Credenciales incorrectas" : res?.error || "Error al iniciar sesión");
+        return;
       }
+      setSuccess(true);
+      const destino = searchParams.get("callbackUrl");
+      router.push(destino?.startsWith("/") ? destino : "/workspace");
+      router.refresh();
     },
-    [router]
+    [router, searchParams]
   );
 
   return (
@@ -81,7 +73,7 @@ export function LoginForm({
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="text-2xl font-bold">Inicia sesión</h1>
         <p className="text-sm text-muted-foreground">
-          Ingresa tu correo y contraseña para acceder a tu cuenta.
+          Ingresa con tu usuario, número de documento o correo.
         </p>
       </div>
 
@@ -89,19 +81,19 @@ export function LoginForm({
 
       <div className="grid gap-4">
         <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="identificador">Usuario o documento</Label>
           <Input
-            id="email"
-            type="email"
-            placeholder="m@example.com"
-            autoComplete="email"
-            aria-invalid={!!errors.email}
-            {...register("email")}
+            id="identificador"
+            type="text"
+            placeholder="1004355591 o mi_usuario"
+            autoComplete="username"
+            aria-invalid={!!errors.identificador}
+            {...register("identificador")}
             className={cn(
-              errors.email ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
+              errors.identificador ? "border-red-500 focus:ring-red-500" : "focus:ring-blue-500"
             )}
           />
-          {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
+          {errors.identificador && <p className="text-red-500 text-xs">{errors.identificador.message}</p>}
         </div>
 
         <div className="grid gap-2">
@@ -141,9 +133,9 @@ export function LoginForm({
       </div>
 
       <div className="text-center text-sm">
-        ¿No tienes acceso?{" "}
+        ¿Olvidaste tu contraseña?{" "}
         <button type="button" onClick={() => setFormType("recovery")} className="underline">
-          Recuperar Cuenta
+          Recuperar cuenta
         </button>
       </div>
     </form>

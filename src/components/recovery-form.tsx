@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import axios from "axios";
+import axios, { isAxiosError } from "axios";
 import { toast } from "sonner";
 
 type Step = "request" | "verify" | "reset" | "done";
@@ -35,6 +35,10 @@ const resetSchema = z
   });
 type ResetData = z.infer<typeof resetSchema>;
 
+function mensajeError(e: unknown, porDefecto: string): string {
+  return (isAxiosError(e) && e.response?.data?.message) || porDefecto;
+}
+
 interface RecoveryFormProps {
   setFormType: React.Dispatch<React.SetStateAction<"login" | "recovery">>;
 }
@@ -43,7 +47,7 @@ export function RecoveryForm({
   setFormType,
   className,
   ...props
-}: RecoveryFormProps & React.ComponentPropsWithoutRef<"form">) {
+}: RecoveryFormProps & React.ComponentPropsWithoutRef<"div">) {
   const [step, setStep] = useState<Step>("request");
   const [loading, setLoading] = useState(false);
   const [identifier, setIdentifier] = useState("");
@@ -79,8 +83,8 @@ export function RecoveryForm({
       toast.success("Código enviado", {
         description: "Revisa tu correo.",
       });
-    } catch (e: any) {
-      setErrorMessage(e.response?.data?.message || "Error al solicitar recuperación");
+    } catch (e) {
+      setErrorMessage(mensajeError(e, "Error al solicitar recuperación"));
       toast.error("Error", { description: "Intente nuevamente." });
     } finally {
       setLoading(false);
@@ -100,8 +104,8 @@ export function RecoveryForm({
       toast.success("Código verificado", {
         description: "Ahora establece tu nueva contraseña.",
       });
-    } catch (e: any) {
-      setErrorMessage(e.response?.data?.message || "Código inválido");
+    } catch (e) {
+      setErrorMessage(mensajeError(e, "Código inválido"));
       toast.error("Error", { description: "Código incorrecto." });
     } finally {
       setLoading(false);
@@ -122,8 +126,8 @@ export function RecoveryForm({
         description: "Inicie sesión con su nueva contraseña.",
       });
       setFormType("login");
-    } catch (e: any) {
-      setErrorMessage(e.response?.data?.message || "Error al actualizar contraseña");
+    } catch (e) {
+      setErrorMessage(mensajeError(e, "Error al actualizar contraseña"));
       toast.error("Error", { description: "Intente nuevamente." });
     } finally {
       setLoading(false);
