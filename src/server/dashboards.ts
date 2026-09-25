@@ -155,6 +155,8 @@ export async function tableroEstudiante(fielId: string) {
       promedio: conNota.length ? Math.round((conNota.reduce((s, m) => s + m.notaFinal, 0) / conNota.length) * 10) / 10 : null,
       pendientes: continuar.reduce((s, c) => s + c.pendientes, 0),
       enRevision: continuar.reduce((s, c) => s + c.enRevision, 0),
+      totalActividades: activas.reduce((s, m) => s + m.curso.actividades.length, 0),
+      progresoPromedio: activas.length ? Math.round(activas.reduce((s, m) => s + m.progreso, 0) / activas.length) : 0,
     },
   };
 }

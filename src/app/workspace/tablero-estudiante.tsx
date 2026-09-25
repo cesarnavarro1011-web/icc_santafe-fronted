@@ -51,10 +51,37 @@ export async function TableroEstudiante({ fielId, compacto = false }: { fielId: 
         <h2 className="mt-2 text-lg font-semibold">Mi estudio</h2>
       ) : (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <KpiCard icon={BookOpen} label="Cursos en progreso" value={t.stats.activos} color="violet" sub={`${t.stats.aprobados} aprobados`} />
-          <KpiCard icon={Star} label="Promedio general" value={t.stats.promedio ?? "—"} color="green" sub="sobre 10" />
-          <KpiCard icon={PenLine} label="Actividades pendientes" value={t.stats.pendientes} color="amber" />
-          <KpiCard icon={Hourglass} label="En revisión" value={t.stats.enRevision} color="blue" sub="tareas enviadas al maestro" />
+          <KpiCard
+            icon={BookOpen}
+            label="Cursos en progreso"
+            value={t.stats.activos}
+            color="violet"
+            sub={`Avance promedio ${t.stats.progresoPromedio}% · ${t.stats.aprobados} aprobados`}
+            progreso={t.stats.progresoPromedio}
+          />
+          <KpiCard
+            icon={Star}
+            label="Promedio general"
+            value={t.stats.promedio ?? "—"}
+            color={t.stats.promedio === null ? "slate" : t.stats.promedio >= 6 ? "green" : "red"}
+            anillo={(t.stats.promedio ?? 0) * 10}
+            sub={t.stats.promedio === null ? "Aún no tienes calificaciones" : t.stats.promedio >= 6 ? "Vas aprobando · mínimo 6 de 10" : "Por debajo del mínimo (6 de 10)"}
+          />
+          <KpiCard
+            icon={PenLine}
+            label="Actividades pendientes"
+            value={t.stats.pendientes}
+            color="amber"
+            sub={`de ${t.stats.totalActividades} tareas y exámenes`}
+            progreso={t.stats.totalActividades ? ((t.stats.totalActividades - t.stats.pendientes) / t.stats.totalActividades) * 100 : 0}
+          />
+          <KpiCard
+            icon={Hourglass}
+            label="En revisión"
+            value={t.stats.enRevision}
+            color="blue"
+            sub={t.stats.enRevision ? "Tu maestro las está revisando" : "Nada esperando revisión"}
+          />
         </div>
       )}
 

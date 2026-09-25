@@ -34,7 +34,7 @@ export function NavUser({ user }: { user: { name: string; email: string | null; 
       </Avatar>
       <div className="grid flex-1 text-left text-sm leading-tight">
         <span className="truncate font-medium">{user.name}</span>
-        <span className="truncate text-xs">{user.email ?? user.codigo}</span>
+        <span className="truncate text-xs">{user.email ?? user.rolLabel}</span>
       </div>
     </>
   )
@@ -57,8 +57,8 @@ export function NavUser({ user }: { user: { name: string; email: string | null; 
           >
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">{cabecera}</div>
-              <div className="text-muted-foreground px-1 pb-1 font-mono text-xs">
-                {user.codigo} · {user.rolLabel}
+              <div className="text-muted-foreground px-1 pb-1 text-xs">
+                {user.rolLabel}
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
