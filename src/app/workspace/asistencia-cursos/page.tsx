@@ -5,7 +5,7 @@ import { ActionButton } from "@/components/workspace/action-button";
 import { EmptyState, PageHeader, Panel } from "@/components/workspace/ui-kit";
 import { fecha, isoDate } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
-import { R } from "@/lib/roles";
+import { R, tieneRol } from "@/lib/roles";
 import { requirePage } from "@/lib/server/session";
 import { cursosEnAlcance, filtroCurso } from "@/server/academico";
 import { eliminarSesion } from "./actions";
@@ -14,6 +14,7 @@ import { RegistroSesion } from "./registro-sesion";
 export default async function AsistenciaCursosPage() {
   const user = await requirePage(R.ACADEMICO);
   const alcance = await cursosEnAlcance(user);
+  const registra = tieneRol(user.rol, R.REGISTRA_CLASES);
 
   const [cursos, sesiones] = await Promise.all([
     prisma.curso.findMany({
@@ -37,7 +38,11 @@ export default async function AsistenciaCursosPage() {
 
   return (
     <>
-      <PageHeader title="Asistencia de cursos" description="Registra cada clase y quiénes asistieron" />
+      <PageHeader
+        title="Asistencia de cursos"
+        description={registra ? "Registra cada clase y quiénes asistieron" : "Consulta de las clases dictadas y su asistencia"}
+      />
+      {registra && (
       <Panel title="Registrar clase">
         <RegistroSesion
           hoy={isoDate(new Date())}
@@ -48,6 +53,7 @@ export default async function AsistenciaCursosPage() {
           }))}
         />
       </Panel>
+      )}
       <Panel title="Clases registradas">
         {sesiones.length === 0 ? (
           <EmptyState icon={ClipboardList}>Aún no hay clases registradas.</EmptyState>
@@ -74,9 +80,11 @@ export default async function AsistenciaCursosPage() {
                   <TableCell className="text-muted-foreground text-xs">{s.tema ?? "—"}</TableCell>
                   <TableCell className="font-semibold">{s._count.asistencias}</TableCell>
                   <TableCell className="text-right">
+                    {registra && (
                     <ActionButton size="icon-sm" variant="ghost" aria-label="Eliminar" confirm="¿Eliminar esta clase y su asistencia?" successMessage="Clase eliminada" action={eliminarSesion.bind(null, s.id)}>
                       <Trash2 className="text-red-600" />
                     </ActionButton>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

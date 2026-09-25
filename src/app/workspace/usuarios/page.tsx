@@ -20,18 +20,20 @@ const ROL_VARIANT = {
   PASTOR: "violet",
   SUPERVISOR: "info",
   LIDER: "success",
+  MARCADOR: "info",
   MAESTRO: "warning",
   ESTUDIANTE: "muted",
 } as const;
 
 const DESCRIPCION_ROL: Record<Rol, string> = {
   SUPERADMIN: "Todo el sistema, incluidos otros superadmins",
-  PASTOR: "Administración completa de la iglesia y firma final de certificados",
-  SUPERVISOR: "Supervisa cursos asignados, control de calidad y firma certificados",
-  LIDER: "Fieles, asistencia de la iglesia y bautismos",
+  PASTOR: "Auditor: ve todo y supervisa a los supervisores. Gestiona catálogo, fieles, usuarios, asignaciones, grupos y cronograma; da la firma final de certificados. No registra asistencia ni califica",
+  SUPERVISOR: "Supervisa los cursos asignados: control de calidad, asistencia de clases y firma de certificados",
+  LIDER: "Su grupo: fieles, bautismos y marcadores. Registra la asistencia de la iglesia cuando su grupo tiene turno",
+  MARCADOR: "Fiel que apoya a su líder registrando la asistencia de la iglesia cuando su grupo tiene turno",
   MAESTRO: "Enseña sus cursos: tareas, exámenes, asistencia y aprobación",
   ESTUDIANTE: "Sus cursos, tareas, exámenes y certificados",
-};
+}
 
 export default async function UsuariosPage({ searchParams }: { searchParams: Promise<{ q?: string; rol?: string }> }) {
   const actor = await requirePage(R.ADMIN);

@@ -13,7 +13,7 @@ type Datos = { cursoId: string; nivel: number; fecha: string; tema: string; fiel
 /** Crea (o actualiza) la clase del día y reemplaza su lista de asistentes. */
 export async function guardarSesion(d: Datos) {
   return runAction(async () => {
-    const user = await requireUser(R.ACADEMICO);
+    const user = await requireUser(R.REGISTRA_CLASES);
     if (!d.cursoId) throw new ErrorNegocio("Selecciona el curso.");
     if (!d.fecha) throw new ErrorNegocio("Selecciona la fecha.");
     if (!Number.isInteger(d.nivel) || d.nivel < 1) throw new ErrorNegocio("Nivel inválido.");
@@ -45,7 +45,7 @@ export async function guardarSesion(d: Datos) {
 
 export async function eliminarSesion(id: string) {
   return runAction(async () => {
-    const user = await requireUser(R.ACADEMICO);
+    const user = await requireUser(R.REGISTRA_CLASES);
     const s = await prisma.sesionClase.findUniqueOrThrow({ where: { id } });
     await exigirCursoEnAlcance(user, s.cursoId);
     await prisma.sesionClase.delete({ where: { id } });

@@ -12,7 +12,7 @@ import { EmptyState, EstadoBadge, Field, Nota, PageHeader, Panel } from "@/compo
 import { ACADEMICO } from "@/lib/config";
 import { ESTADO_ENTREGA, fechaHora, opciones } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
-import { R } from "@/lib/roles";
+import { R, tieneRol } from "@/lib/roles";
 import { requirePage } from "@/lib/server/session";
 import { cursosEnAlcance, filtroCurso } from "@/server/academico";
 import { calificarEntrega } from "./actions";
@@ -21,6 +21,7 @@ export default async function TareasPage({ searchParams }: { searchParams: Promi
   const user = await requirePage(R.DOCENTE);
   const { q, estado = "ENVIADA" } = await searchParams;
   const alcance = await cursosEnAlcance(user);
+  const califica = tieneRol(user.rol, R.CALIFICA);
 
   const where: Prisma.EntregaWhereInput = {
     actividad: { cursoId: filtroCurso(alcance), tipo: "TAREA" },
@@ -44,7 +45,7 @@ export default async function TareasPage({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <PageHeader title="Revisar tareas" description={`${entregas.length} entregas`} />
+      <PageHeader title={califica ? "Revisar tareas" : "Tareas entregadas"} description={califica ? `${entregas.length} entregas` : `${entregas.length} entregas · solo consulta`} />
       <SearchBar
         placeholder="Buscar por estudiante o actividad..."
         filtros={[{ name: "estado", label: "Por revisar (enviadas)", options: [{ value: "TODAS", label: "Todas" }, ...opciones(ESTADO_ENTREGA).filter((o) => o.value !== "ENVIADA")] }]}
@@ -100,6 +101,7 @@ export default async function TareasPage({ searchParams }: { searchParams: Promi
                     <Nota valor={e.nota ? (e.nota.nota / e.nota.notaMax) * ACADEMICO.NOTA_MAX : null} />
                   </TableCell>
                   <TableCell className="text-right">
+                    {califica && (
                     <FormDialog
                       title={`Calificar · ${e.actividad.nombre}`}
                       description={`${e.fiel.nombre} ${e.fiel.apellido} — ${e.actividad.curso.nombre}`}
@@ -131,6 +133,7 @@ export default async function TareasPage({ searchParams }: { searchParams: Promi
                         Mínimo {ACADEMICO.NOTA_MIN_APROBAR}/{ACADEMICO.NOTA_MAX} para aprobar. El estudiante recibe un correo con el resultado.
                       </p>
                     </FormDialog>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

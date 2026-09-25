@@ -9,6 +9,7 @@ import {
   Book,
   BookOpen,
   CalendarCheck,
+  CalendarRange,
   CheckCheck,
   CircleHelp,
   ClipboardList,
@@ -21,6 +22,7 @@ import {
   ShieldCheck,
   UserCog,
   Users,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react"
 
@@ -38,7 +40,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import type { NavSection } from "@/lib/roles"
+import { esRutaSinMenu, type NavSection } from "@/lib/roles"
 import type { CursoMenu } from "@/server/dashboards"
 
 const ICONOS: Record<string, LucideIcon> = {
@@ -58,6 +60,8 @@ const ICONOS: Record<string, LucideIcon> = {
   award: Award,
   "book-open": BookOpen,
   "key-round": KeyRound,
+  "users-round": UsersRound,
+  "calendar-range": CalendarRange,
 }
 
 type Props = React.ComponentProps<typeof Sidebar> & {
@@ -72,6 +76,9 @@ type Props = React.ComponentProps<typeof Sidebar> & {
 export function AppSidebar({ nav, cursos, cursosPrimero, user, ...props }: Props) {
   const pathname = usePathname()
   const activo = (href: string) => (href === "/workspace" ? pathname === href : pathname.startsWith(href))
+
+  // Perfil y cambio de contraseña se ven como otra página, sin la barra principal
+  if (esRutaSinMenu(pathname)) return null
 
   return (
     <Sidebar collapsible="icon" {...props}>

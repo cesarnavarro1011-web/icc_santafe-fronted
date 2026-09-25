@@ -11,7 +11,7 @@ import { iniciarCertificado } from "@/server/certificados";
 /** Antes aprobarCursoMaestro + iniciarCertificado: el maestro aprueba y firma primero. */
 export async function aprobarYCertificar(matriculaId: string) {
   return runAction(async () => {
-    const user = await requireUser(R.DOCENTE);
+    const user = await requireUser(R.CALIFICA);
     await iniciarCertificado(user, matriculaId);
     revalidatePath("/workspace/clases");
     revalidatePath("/workspace/certificados");

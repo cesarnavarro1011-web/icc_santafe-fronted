@@ -59,6 +59,47 @@ export async function dashboardSupervisor(user: UsuarioSesion) {
   return { cursos, estudiantes, certsPendientes, alertas };
 }
 
+/**
+ * Para el pastor (auditor): cómo va cada supervisor en sus cursos.
+ * Incluye a los usuarios Supervisor que aún no tienen cursos asignados.
+ */
+export async function dashboardSupervisores() {
+  const hace30 = new Date(Date.now() - 30 * 86_400_000);
+  const supervisores = await prisma.fiel.findMany({
+    where: {
+      OR: [{ usuario: { rol: "SUPERVISOR", activo: true } }, { asignacionesSupervisor: { some: { estado: "ACTIVO" } } }],
+    },
+    orderBy: [{ apellido: "asc" }],
+    include: { asignacionesSupervisor: { where: { estado: "ACTIVO" }, include: { curso: { select: { id: true, nombre: true } } } } },
+  });
+
+  return Promise.all(
+    supervisores.map(async (s) => {
+      const cursoIds = s.asignacionesSupervisor.map((a) => a.cursoId);
+      const [estudiantes, pendientes, clases, alertas] = await Promise.all([
+        prisma.matricula.count({ where: { cursoId: { in: cursoIds }, estado: "EN_PROGRESO" } }),
+        prisma.certificado.findMany({
+          where: { cursoId: { in: cursoIds }, estado: "EN_FIRMA", firmaSupervisorAt: null, firmaMaestroAt: { not: null } },
+          select: { firmaMaestroAt: true },
+        }),
+        prisma.sesionClase.count({ where: { cursoId: { in: cursoIds }, fecha: { gte: hace30 } } }),
+        cursoIds.length ? alertasIntegridad(cursoIds) : Promise.resolve([]),
+      ]);
+      const masAntiguo = pendientes.reduce<Date | null>((min, p) => (!min || (p.firmaMaestroAt && p.firmaMaestroAt < min) ? p.firmaMaestroAt : min), null);
+      return {
+        id: s.id,
+        nombre: `${s.nombre} ${s.apellido}`,
+        cursos: s.asignacionesSupervisor.map((a) => a.curso.nombre),
+        estudiantes,
+        certsPendientes: pendientes.length,
+        diasSinFirmar: masAntiguo ? Math.floor((Date.now() - masAntiguo.getTime()) / 86_400_000) : 0,
+        clases30: clases,
+        alertas: alertas.length,
+      };
+    }),
+  );
+}
+
 /** Irregularidades: tareas aprobadas con nota menor al mínimo (antes getDashboardLider). */
 export async function alertasIntegridad(alcance: string[] | null) {
   const notas = await prisma.nota.findMany({

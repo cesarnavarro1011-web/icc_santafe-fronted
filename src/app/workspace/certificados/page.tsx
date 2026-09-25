@@ -22,7 +22,7 @@ export default async function CertificadosPage({ searchParams }: { searchParams:
   const { estado, q } = await searchParams;
   const alcance = await cursosEnAlcance(user);
   const esAdmin = tieneRol(user.rol, R.ADMIN);
-  const firmaSupervisor = tieneRol(user.rol, R.SUPERVISION);
+  const firmaSupervisor = tieneRol(user.rol, R.FIRMA_SUPERVISOR);
 
   const base: Prisma.CertificadoWhereInput = { cursoId: filtroCurso(alcance) };
   const where: Prisma.CertificadoWhereInput = {

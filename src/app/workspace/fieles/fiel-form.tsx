@@ -4,8 +4,21 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Field } from "@/components/workspace/ui-kit";
 import { ESTADO_CIVIL, isoDate, opciones } from "@/lib/labels";
 
+type Opcion = { value: string; label: string };
+
 /** Campos del formulario de fiel (se usan dentro de un FormDialog). */
-export function FielFields({ fiel }: { fiel?: Fiel }) {
+export function FielFields({
+  fiel,
+  lideres,
+  cargos,
+  cargosActuales = [],
+}: {
+  fiel?: Fiel;
+  /** Grupos activos mostrados como "Líder (Grupo)" */
+  lideres: Opcion[];
+  cargos: Opcion[];
+  cargosActuales?: string[];
+}) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {fiel ? (
@@ -56,6 +69,33 @@ export function FielFields({ fiel }: { fiel?: Fiel }) {
           <option value="ACTIVO">Activo</option>
           <option value="INACTIVO">Inactivo</option>
         </NativeSelect>
+      </Field>
+      <Field label="Líder asignado">
+        <NativeSelect name="grupoId" defaultValue={fiel?.grupoId ?? ""}>
+          <option value="">— Sin líder —</option>
+          {lideres.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </NativeSelect>
+      </Field>
+      <Field label="Cargos en la iglesia" className="sm:col-span-2">
+        <div className="grid gap-1 rounded-lg border p-2 sm:grid-cols-2">
+          {cargos.map((c) => (
+            <label key={c.value} className="hover:bg-accent flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm">
+              <input
+                type="checkbox"
+                name="cargos"
+                value={c.value}
+                defaultChecked={cargosActuales.includes(c.value)}
+                className="size-4 accent-violet-600"
+              />
+              {c.label}
+            </label>
+          ))}
+        </div>
+        <Input name="otroCargo" placeholder="¿Otro cargo? Escríbelo aquí y se agrega a la lista" />
       </Field>
     </div>
   );

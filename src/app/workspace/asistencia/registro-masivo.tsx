@@ -14,9 +14,12 @@ type Props = {
   fieles: { value: string; label: string }[];
   servicios: { value: string; label: string }[];
   hoy: string;
+  /** Límites de la semana del turno (líder / marcador) */
+  min?: string;
+  max?: string;
 };
 
-export function RegistroMasivo({ fieles, servicios, hoy }: Props) {
+export function RegistroMasivo({ fieles, servicios, hoy, min, max }: Props) {
   const [q, setQ] = useState("");
   const [marcados, setMarcados] = useState<Set<string>>(new Set());
   const [servicio, setServicio] = useState(servicios[0]?.value ?? "DOMINGO");
@@ -63,7 +66,7 @@ export function RegistroMasivo({ fieles, servicios, hoy }: Props) {
           </NativeSelect>
         </Field>
         <Field label="Fecha">
-          <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          <Input type="date" value={fecha} min={min} max={max} onChange={(e) => setFecha(e.target.value)} />
         </Field>
         <Field label="Invitados (sin registro)">
           <Input type="number" min={0} value={invitados} onChange={(e) => setInvitados(Number(e.target.value) || 0)} />

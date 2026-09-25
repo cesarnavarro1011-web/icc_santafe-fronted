@@ -33,12 +33,17 @@ Sin `SMTP_HOST` en `.env`, los correos (códigos OTP, confirmaciones) se imprime
 
 | Rol | Qué hace |
 | --- | --- |
-| Superadmin | Todo, incluida la gestión de otros superadmins |
-| Pastor | Administración completa; firma final de certificados |
-| Supervisor | Supervisa los cursos asignados: control de calidad, asistencia, firma certificados |
-| Líder | Fieles, asistencia de la iglesia y bautismos |
-| Maestro | Sus cursos: tareas, exámenes, asistencia, aprobación e inicio del certificado |
+| Superadmin | Todo, sin restricciones (incluido registrar asistencia cualquier semana) |
+| Pastor | **Auditor**: ve todo y supervisa a los supervisores. Gestiona catálogo, fieles, bautismos, pagos, usuarios, asignaciones, grupos y el cronograma; da la firma final de certificados. No registra asistencia ni califica |
+| Supervisor | Supervisa los cursos asignados: control de calidad, asistencia de clases, firma de certificados |
+| Líder | Su grupo (Mi grupo), fieles y bautismos; nombra marcadores; registra la asistencia de la iglesia cuando su grupo tiene turno |
+| Marcador | Fiel del grupo que apoya al líder registrando la asistencia cuando su grupo tiene turno |
+| Maestro | Sus cursos: tareas, exámenes, asistencia de clases y aprobación |
 | Estudiante | Sus cursos, entregas, exámenes, asistencia y certificados |
+
+**Asistencia de la iglesia por turnos:** el pastor arma los grupos (Grupos y líderes) y asigna cada semana
+qué grupo registra (Cronograma de asistencia, con rotación automática). Solo el líder y los marcadores del
+grupo de turno pueden registrar en esa semana (lunes a domingo).
 
 Todos los roles tienen “Mis cursos” y “Perfil”. Los permisos por ruta están en `src/lib/roles.ts`.
 

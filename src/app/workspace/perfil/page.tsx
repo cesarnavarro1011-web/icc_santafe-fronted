@@ -31,8 +31,8 @@ export default async function PerfilPage() {
   const iniciales = `${f.nombre[0] ?? ""}${f.apellido[0] ?? ""}`.toUpperCase();
 
   return (
-    <>
-      <PageHeader title="Perfil y seguridad" description="Tu información y acceso" />
+    <div className="mx-auto w-full max-w-6xl space-y-5">
+      <PageHeader title="Perfil y seguridad" description="Tu información, tu firma y tu contraseña" />
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5">
           <Panel>
@@ -131,6 +131,6 @@ export default async function PerfilPage() {
           </Panel>
         </div>
       </div>
-    </>
+    </div>
   );
 }

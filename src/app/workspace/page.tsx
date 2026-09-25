@@ -4,6 +4,7 @@ import {
   Award,
   BookOpen,
   CalendarCheck,
+  CalendarRange,
   CheckCheck,
   DollarSign,
   Droplets,
@@ -24,8 +25,13 @@ import {
   dashboardLider,
   dashboardMaestro,
   dashboardSupervisor,
+  dashboardSupervisores,
 } from "@/server/dashboards";
 import { TableroEstudiante } from "./tablero-estudiante";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import { hoyISO, lunesDe, permisoRegistro, turnosDeSemana } from "@/server/turnos";
 
 function Atajo({ href, icon: Icon, label }: { href: string; icon: typeof Users; label: string }) {
   return (
@@ -45,18 +51,19 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <PageHeader title={`Hola, ${nombre}`} description={user.rol === "ESTUDIANTE" ? "Este es tu espacio de estudio. Tus cursos están en el menú de la izquierda." : `Bienvenido a tu espacio de estudio · ${ROL_LABEL[user.rol]}`} />
+      <PageHeader title={`Hola, ${nombre}`} description={tieneRol(user.rol, R.APRENDIZ) ? "Este es tu espacio de estudio. Tus cursos están en el menú de la izquierda." : `Bienvenido a tu espacio de estudio · ${ROL_LABEL[user.rol]}`} />
       {denegado && (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
           No tienes permiso para entrar a esa sección.
         </p>
       )}
 
+      {tieneRol(user.rol, R.ASISTENCIA_IGLESIA) && <TurnoSemana />}
       {tieneRol(user.rol, R.ADMIN) && <TableroGeneral />}
       {user.rol === "LIDER" && <TableroLider />}
       {user.rol === "SUPERVISOR" && <TableroSupervisor />}
       {user.rol === "MAESTRO" && <TableroMaestro />}
-      <TableroEstudiante fielId={user.fielId} compacto={user.rol !== "ESTUDIANTE"} />
+      <TableroEstudiante fielId={user.fielId} compacto={!tieneRol(user.rol, R.APRENDIZ)} />
     </>
   );
 
@@ -75,11 +82,86 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
           <KpiCard icon={DollarSign} label="Ingresos" value={dinero(s.ingresos)} color="slate" />
         </div>
         <div className="grid gap-3 md:grid-cols-3">
-          <Atajo href="/workspace/fieles" icon={Users} label="Gestionar fieles" />
-          <Atajo href="/workspace/asistencia" icon={CalendarCheck} label="Registrar asistencia" />
-          <Atajo href="/workspace/certificados" icon={Award} label="Ver certificados" />
+          <Atajo href="/workspace/grupos" icon={Users} label="Grupos y líderes" />
+          <Atajo href="/workspace/cronograma" icon={CalendarCheck} label="Cronograma de asistencia" />
+          <Atajo href="/workspace/certificados" icon={Award} label="Certificados por firmar" />
         </div>
+        <PanelSupervisores />
       </>
+    );
+  }
+
+  /** El pastor audita a sus supervisores: carga, firmas pendientes, clases y alertas. */
+  async function PanelSupervisores() {
+    const sup = await dashboardSupervisores();
+    return (
+      <Panel
+        title={<span className="flex items-center gap-2"><ShieldCheck className="size-4 text-violet-500" /> Supervisores</span>}
+        actions={<Link href="/workspace/asignaciones" className="text-sm text-violet-700 hover:underline">Asignar</Link>}
+      >
+        {sup.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No hay supervisores. Crea usuarios con rol Supervisor y asígnales cursos.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Supervisor</TableHead>
+                <TableHead>Cursos</TableHead>
+                <TableHead className="text-right">Estudiantes</TableHead>
+                <TableHead className="text-right">Clases (30 d)</TableHead>
+                <TableHead className="text-right">Certificados por firmar</TableHead>
+                <TableHead className="text-right">Alertas</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sup.map((x) => (
+                <TableRow key={x.id}>
+                  <TableCell className="font-medium">{x.nombre}</TableCell>
+                  <TableCell className="text-xs">
+                    {x.cursos.length ? x.cursos.join(", ") : <span className="text-amber-600">Sin cursos asignados</span>}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{x.estudiantes}</TableCell>
+                  <TableCell className={cn("text-right tabular-nums", x.cursos.length > 0 && x.clases30 === 0 && "font-semibold text-amber-600")}>{x.clases30}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {x.certsPendientes}
+                    {x.certsPendientes > 0 && (
+                      <span className={cn("ml-1 text-xs", x.diasSinFirmar > 7 ? "text-red-600" : "text-muted-foreground")}>({x.diasSinFirmar} d)</span>
+                    )}
+                  </TableCell>
+                  <TableCell className={cn("text-right tabular-nums", x.alertas > 0 && "font-semibold text-red-600")}>{x.alertas}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Panel>
+    );
+  }
+
+  /** Quién registra la asistencia de la iglesia esta semana (y si te toca a ti). */
+  async function TurnoSemana() {
+    const hoy = hoyISO();
+    const [turnos, permiso] = await Promise.all([turnosDeSemana(lunesDe(hoy)), permisoRegistro(user, hoy)]);
+    const meToca = permiso.puede && !permiso.libre;
+    // Al marcador solo se le avisa cuando le toca; pastor, superadmin y líder siempre ven el turno
+    if (!meToca && user.rol === "MARCADOR") return null;
+    return (
+      <div className={cn("flex flex-wrap items-center gap-3 rounded-xl border p-4", meToca ? "border-emerald-200 bg-emerald-50" : "bg-card")}>
+        <CalendarRange className={cn("size-5", meToca ? "text-emerald-600" : "text-violet-500")} />
+        <div className="min-w-0 flex-1 text-sm">
+          {meToca ? (
+            <p className="font-semibold text-emerald-800">Esta semana tu grupo registra la asistencia de los servicios.</p>
+          ) : (
+            <p>
+              <span className="text-muted-foreground">Turno de asistencia esta semana: </span>
+              <strong>{turnos.length ? turnos.map((t) => t.grupo.nombre).join(", ") : "sin asignar"}</strong>
+            </p>
+          )}
+        </div>
+        <Button size="sm" variant={meToca ? "default" : "outline"} asChild>
+          <Link href={meToca ? "/workspace/asistencia" : "/workspace/cronograma"}>{meToca ? "Registrar asistencia" : "Ver cronograma"}</Link>
+        </Button>
+      </div>
     );
   }
 

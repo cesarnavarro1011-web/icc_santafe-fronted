@@ -20,6 +20,7 @@ enum Rol {
   PASTOR
   SUPERVISOR
   LIDER
+  MARCADOR // registra asistencia de los servicios cuando su grupo tiene turno
   MAESTRO
   ESTUDIANTE
 }
@@ -117,10 +118,13 @@ model Fiel {
   direccion       String?
   correo          String?
   estado          EstadoRegistro @default(ACTIVO)
+  grupoId         String? // grupo del líder al que pertenece
+  grupo           Grupo?         @relation("MiembrosGrupo", fields: [grupoId], references: [id], onDelete: SetNull)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
   usuario                Usuario?
+  gruposQueLidera        Grupo[]                    @relation("LiderGrupo")
   bautismos              Bautismo[]
   asistencias            AsistenciaCongregacional[]
   inscripciones          Inscripcion[]
@@ -203,6 +207,35 @@ model AsistenciaCongregacional {
   createdAt       DateTime     @default(now())
 
   @@index([fecha])
+}
+
+/// Grupo de un líder: sus fieles. Por turnos semanales registra la asistencia de los servicios.
+model Grupo {
+  id          String         @id @default(cuid())
+  nombre      String         @unique
+  descripcion String?
+  liderId     String?
+  lider       Fiel?          @relation("LiderGrupo", fields: [liderId], references: [id], onDelete: SetNull)
+  estado      EstadoRegistro @default(ACTIVO)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  miembros Fiel[]            @relation("MiembrosGrupo")
+  turnos   TurnoAsistencia[]
+}
+
+/// Cronograma: a qué grupo le toca registrar la asistencia cada semana (lunes a domingo)
+model TurnoAsistencia {
+  id          String   @id @default(cuid())
+  semana      DateTime @db.Date // lunes de la semana
+  grupoId     String
+  grupo       Grupo    @relation(fields: [grupoId], references: [id], onDelete: Cascade)
+  notas       String?
+  creadoPorId String?
+  createdAt   DateTime @default(now())
+
+  @@unique([grupoId, semana])
+  @@index([semana])
 }
 
 /// Hoja "Areas_Inscritas"

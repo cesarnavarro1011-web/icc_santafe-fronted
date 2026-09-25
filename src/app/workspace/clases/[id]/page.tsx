@@ -35,7 +35,7 @@ export default async function ClaseDetallePage({ params }: { params: Promise<{ i
   });
   if (!curso) notFound();
   const asistencia = await asistenciaPorFiel(curso.id);
-  const puedeCertificar = tieneRol(user.rol, R.DOCENTE);
+  const puedeCertificar = tieneRol(user.rol, R.CALIFICA);
 
   return (
     <>

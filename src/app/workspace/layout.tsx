@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { Toaster } from "sonner";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Providers } from "@/components/workspace/providers";
-import { Separator } from "@/components/ui/separator";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { navParaRol, ROL_LABEL } from "@/lib/roles";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { EncabezadoInicio } from "@/components/workspace/encabezado";
+import { navParaRol, R, ROL_LABEL, tieneRol } from "@/lib/roles";
 import { requirePage } from "@/lib/server/session";
 import { cursosParaMenu } from "@/server/dashboards";
 
@@ -24,14 +24,12 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
         <AppSidebar
           nav={bloqueado ? [] : navParaRol(user.rol)}
           cursos={cursos}
-          cursosPrimero={!bloqueado && user.rol === "ESTUDIANTE"}
+          cursosPrimero={!bloqueado && tieneRol(user.rol, R.APRENDIZ)}
           user={{ name: user.name, email: user.email, codigo: user.codigo, rolLabel }}
         />
         <SidebarInset className="bg-slate-50">
           <header className="bg-background sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-            <span className="text-muted-foreground text-sm">Espacio de estudio</span>
+            <EncabezadoInicio puedeVolver={!bloqueado} />
             <span className="text-muted-foreground ml-auto hidden text-xs md:block">
               {user.name} · {rolLabel}
             </span>

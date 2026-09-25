@@ -58,7 +58,7 @@ export async function firmarCertificado(user: UsuarioSesion, certificadoId: stri
   if (!c.firmaMaestroAt) throw new ErrorNegocio("Falta la firma del maestro.");
 
   if (como === "SUPERVISOR") {
-    if (!tieneRol(user.rol, ["SUPERVISOR", ...R.ADMIN])) throw new ErrorNegocio("No puedes firmar como supervisor.");
+    if (!tieneRol(user.rol, R.FIRMA_SUPERVISOR)) throw new ErrorNegocio("La firma de supervisor la da el supervisor del curso.");
     await exigirCursoEnAlcance(user, c.cursoId);
     if (c.firmaSupervisorAt) throw new ErrorNegocio("Ya tiene la firma del supervisor.");
     await prisma.certificado.update({

@@ -22,7 +22,7 @@ const ETIQUETA = { APROBADA: "aprobada", REPROBADA: "reprobada", DEVUELTA: "devu
 
 export async function calificarEntrega(entregaId: string, fd: FormData) {
   return runAction(async () => {
-    const user = await requireUser(R.DOCENTE);
+    const user = await requireUser(R.CALIFICA);
     const d = schema.parse(formObj(fd));
     const e = await prisma.entrega.findUniqueOrThrow({ where: { id: entregaId }, include: { actividad: true, fiel: true } });
     await exigirCursoEnAlcance(user, e.actividad.cursoId);

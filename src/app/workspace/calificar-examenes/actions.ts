@@ -17,7 +17,7 @@ const schema = z.object({
 
 export async function editarNotaExamen(intentoId: string, fd: FormData) {
   return runAction(async () => {
-    const user = await requireUser(R.DOCENTE);
+    const user = await requireUser(R.CALIFICA);
     const d = schema.parse(formObj(fd));
     const intento = await prisma.intentoExamen.findUniqueOrThrow({ where: { id: intentoId }, include: { actividad: true } });
     await exigirCursoEnAlcance(user, intento.actividad.cursoId);

@@ -9,6 +9,7 @@ import { runAction } from "@/lib/server/action";
 import { ErrorNegocio } from "@/lib/server/errors";
 import { formObj, zFechaOpc, zTextoOpc } from "@/lib/server/form";
 import { requireUser } from "@/lib/server/session";
+import { exigirTurno, hoyISO } from "@/server/turnos";
 
 function fechaServicio(fecha: Date | null | undefined) {
   if (!fecha) return new Date();
@@ -27,8 +28,9 @@ const individualSchema = z.object({
 
 export async function registrarAsistencia(fd: FormData) {
   return runAction(async () => {
-    const user = await requireUser(R.PASTORAL);
+    const user = await requireUser(R.ASISTENCIA_IGLESIA);
     const d = individualSchema.parse(formObj(fd));
+    await exigirTurno(user, d.fecha ? d.fecha.toISOString().slice(0, 10) : hoyISO());
     if (!d.fielId && !d.nombreInvitado) throw new ErrorNegocio("Selecciona un fiel o escribe el nombre del invitado.");
     await prisma.asistenciaCongregacional.create({
       data: {
@@ -46,7 +48,8 @@ export async function registrarAsistencia(fd: FormData) {
 
 export async function registrarAsistenciaMasiva(fielIds: string[], servicio: TipoServicio, fecha: string, invitados: number) {
   return runAction(async () => {
-    const user = await requireUser(R.PASTORAL);
+    const user = await requireUser(R.ASISTENCIA_IGLESIA);
+    await exigirTurno(user, fecha || hoyISO());
     if (fielIds.length === 0 && invitados <= 0) throw new ErrorNegocio("Marca al menos un asistente.");
     const f = fechaServicio(fecha ? new Date(fecha) : null);
     const filas = [
@@ -65,9 +68,15 @@ export async function registrarAsistenciaMasiva(fielIds: string[], servicio: Tip
   });
 }
 
+/** Superadmin, o quien lo registró mientras su grupo siga de turno esa semana. */
 export async function eliminarAsistencia(id: string) {
   return runAction(async () => {
-    await requireUser(R.PASTORAL);
+    const user = await requireUser(R.ASISTENCIA_IGLESIA);
+    const registro = await prisma.asistenciaCongregacional.findUniqueOrThrow({ where: { id } });
+    if (user.rol !== "SUPERADMIN") {
+      if (registro.registradoPorId !== user.fielId) throw new ErrorNegocio("Solo puedes eliminar registros que hiciste tú.");
+      await exigirTurno(user, registro.fecha.toISOString().slice(0, 10));
+    }
     await prisma.asistenciaCongregacional.delete({ where: { id } });
     revalidatePath("/workspace/asistencia");
     return null;

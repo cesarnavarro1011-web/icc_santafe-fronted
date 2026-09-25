@@ -12,7 +12,7 @@ import { EmptyState, Field, Nota, PageHeader, Panel } from "@/components/workspa
 import { ACADEMICO } from "@/lib/config";
 import { fechaHora } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
-import { R } from "@/lib/roles";
+import { R, tieneRol } from "@/lib/roles";
 import { requirePage } from "@/lib/server/session";
 import { cursosEnAlcance, filtroCurso } from "@/server/academico";
 import type { DetalleRespuesta } from "@/server/examenes";
@@ -23,6 +23,7 @@ export default async function CalificarExamenesPage({ searchParams }: { searchPa
   const user = await requirePage(R.DOCENTE);
   const { q } = await searchParams;
   const alcance = await cursosEnAlcance(user);
+  const califica = tieneRol(user.rol, R.CALIFICA);
 
   const where: Prisma.IntentoExamenWhereInput = {
     actividad: { cursoId: filtroCurso(alcance) },
@@ -45,7 +46,10 @@ export default async function CalificarExamenesPage({ searchParams }: { searchPa
 
   return (
     <>
-      <PageHeader title="Calificar exámenes" description="Revisa la calificación automática y corrígela si es necesario" />
+      <PageHeader
+        title={califica ? "Calificar exámenes" : "Exámenes presentados"}
+        description={califica ? "Revisa la calificación automática y corrígela si es necesario" : "Resultados de los exámenes · solo consulta"}
+      />
       <SearchBar placeholder="Buscar por estudiante o curso..." />
       <Panel>
         {intentos.length === 0 ? (
@@ -130,6 +134,7 @@ export default async function CalificarExamenesPage({ searchParams }: { searchPa
                             </div>
                           </DialogContent>
                         </Dialog>
+                        {califica && (
                         <FormDialog
                           title="Editar nota del examen"
                           description="Sobrescribe la calificación automática."
@@ -148,6 +153,7 @@ export default async function CalificarExamenesPage({ searchParams }: { searchPa
                             <Textarea name="motivo" rows={2} placeholder="Ej: pregunta ambigua" defaultValue={i.motivoEdicion ?? ""} />
                           </Field>
                         </FormDialog>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
