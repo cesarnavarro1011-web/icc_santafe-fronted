@@ -48,6 +48,10 @@ export const R = {
   ASISTENCIA_IGLESIA: ["SUPERADMIN", "PASTOR", "LIDER", "MARCADOR"],
   /** Pueden registrar asistencia de la iglesia cuando su grupo tiene turno */
   REGISTRA_POR_TURNO: ["LIDER", "MARCADOR"],
+  /** Diezmos y ofrendas: el líder registra, el pastor verifica */
+  FINANZAS: ["SUPERADMIN", "PASTOR", "LIDER"],
+  REGISTRA_OFRENDAS: ["SUPERADMIN", "LIDER"],
+  VERIFICA_OFRENDAS: ["SUPERADMIN", "PASTOR"],
   /** Estudian: su Inicio es el tablero del estudiante */
   APRENDIZ: ["ESTUDIANTE", "MARCADOR"],
   TODOS: ROLES,
@@ -70,6 +74,7 @@ export const NAV: NavSection[] = [
       { href: "/workspace/fieles", label: "Fieles", icon: "users", roles: R.PASTORAL },
       { href: "/workspace/asistencia", label: "Asistencia iglesia", icon: "calendar-check", roles: R.ASISTENCIA_IGLESIA },
       { href: "/workspace/bautismos", label: "Bautismos", icon: "droplets", roles: R.PASTORAL },
+      { href: "/workspace/ofrendas", label: "Diezmos y ofrendas", icon: "hand-coins", roles: R.FINANZAS },
       { href: "/workspace/inscripciones", label: "Inscripciones y pagos", icon: "credit-card", roles: R.ADMIN },
     ],
   },

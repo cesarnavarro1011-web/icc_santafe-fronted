@@ -1,5 +1,6 @@
 import type {
   EstadoCertificado,
+  EstadoOfrenda,
   EstadoCivil,
   EstadoEntrega,
   EstadoMatricula,
@@ -9,6 +10,7 @@ import type {
   RolMaestro,
   TipoActividad,
   TipoBautismo,
+  TipoOfrenda,
   TipoServicio,
 } from "@prisma/client";
 import type { BadgeVariant } from "@/components/ui/badge";
@@ -84,6 +86,22 @@ export const ESTADO_CERTIFICADO: Etiquetas<EstadoCertificado> = {
   EN_FIRMA: { label: "En firma", variant: "warning" },
   EMITIDO: { label: "Emitido", variant: "success" },
   ANULADO: { label: "Anulado", variant: "muted" },
+};
+
+export const TIPO_OFRENDA: Etiquetas<TipoOfrenda> = {
+  DIEZMO: { label: "Diezmo", variant: "violet" },
+  OFRENDA: { label: "Ofrenda", variant: "info" },
+  PRIMICIA: { label: "Primicia", variant: "success" },
+  PRO_TEMPLO: { label: "Pro-templo", variant: "warning" },
+  MISIONES: { label: "Misiones", variant: "info" },
+  ACCION_GRACIAS: { label: "Acción de gracias", variant: "success" },
+  OTRO: { label: "Otro", variant: "muted" },
+};
+
+export const ESTADO_OFRENDA: Etiquetas<EstadoOfrenda> = {
+  PENDIENTE: { label: "Por verificar", variant: "warning" },
+  VERIFICADO: { label: "Verificado", variant: "success" },
+  OBSERVADO: { label: "Con observación", variant: "danger" },
 };
 
 export function opciones<E extends string>(mapa: Record<E, string | { label: string }>) {

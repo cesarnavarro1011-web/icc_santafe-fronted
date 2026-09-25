@@ -99,6 +99,22 @@ enum EstadoCertificado {
   ANULADO
 }
 
+enum TipoOfrenda {
+  DIEZMO
+  OFRENDA
+  PRIMICIA
+  PRO_TEMPLO
+  MISIONES
+  ACCION_GRACIAS
+  OTRO
+}
+
+enum EstadoOfrenda {
+  PENDIENTE // registrado por el líder, falta revisión del pastor
+  VERIFICADO
+  OBSERVADO // el pastor encontró algo que revisar
+}
+
 enum PropositoOtp {
   CAMBIO_PASSWORD
 }
@@ -125,6 +141,7 @@ model Fiel {
 
   usuario                Usuario?
   gruposQueLidera        Grupo[]                    @relation("LiderGrupo")
+  ofrendasRegistradas    RegistroOfrenda[]          @relation("OfrendaRegistrador")
   bautismos              Bautismo[]
   asistencias            AsistenciaCongregacional[]
   inscripciones          Inscripcion[]
@@ -222,6 +239,7 @@ model Grupo {
 
   miembros Fiel[]            @relation("MiembrosGrupo")
   turnos   TurnoAsistencia[]
+  ofrendas RegistroOfrenda[]
 }
 
 /// Cronograma: a qué grupo le toca registrar la asistencia cada semana (lunes a domingo)
@@ -547,4 +565,28 @@ model LogEnvio {
   estado    String   @default("PENDIENTE")
   error     String?
   createdAt DateTime @default(now())
+}
+
+/// Diezmos, ofrendas y demás recaudos por servicio. Los registra el líder; el pastor los verifica.
+model RegistroOfrenda {
+  id              String        @id @default(cuid())
+  fecha           DateTime      @db.Date
+  servicio        TipoServicio
+  tipo            TipoOfrenda
+  metodo          MetodoPago    @default(EFECTIVO)
+  monto           Decimal       @db.Decimal(14, 2)
+  descripcion     String? // para "Otro" o aclaraciones
+  registradoPorId String
+  registradoPor   Fiel          @relation("OfrendaRegistrador", fields: [registradoPorId], references: [id], onDelete: Restrict)
+  grupoId         String?
+  grupo           Grupo?        @relation(fields: [grupoId], references: [id], onDelete: SetNull)
+  estado          EstadoOfrenda @default(PENDIENTE)
+  verificadoPorId String?
+  verificadoAt    DateTime?
+  observacion     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([fecha])
+  @@index([registradoPorId])
 }

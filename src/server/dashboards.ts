@@ -11,27 +11,93 @@ function inicioDeHoy() {
   return d;
 }
 
-export async function dashboardGeneral() {
-  const [totalFieles, fielesActivos, enCurso, aprobados, certificados, tareasPendientes, asistenciasHoy, pagos] =
+function rangoMes(desplazamiento = 0) {
+  const hoy = new Date();
+  const desde = new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth() + desplazamiento, 1));
+  const hasta = new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth() + desplazamiento + 1, 1));
+  return { gte: desde, lt: hasta };
+}
+
+const sumaMontos = (rs: { monto: unknown }[]) => rs.reduce((s, r) => s + Number(r.monto), 0);
+
+/** Apartado "Iglesia" del pastor: membresía, asistencia, grupos y finanzas del mes. */
+export async function dashboardIglesia() {
+  const hace28 = new Date(Date.now() - 28 * 86_400_000);
+  const hace30 = new Date(Date.now() - 30 * 86_400_000);
+  const [totalFieles, fielesActivos, bautizados, nuevosMes, asistenciasHoy, asistencias30, domingos, grupos, sinGrupo, mesActual, mesAnterior] =
     await Promise.all([
       prisma.fiel.count(),
       prisma.fiel.count({ where: { estado: "ACTIVO" } }),
-      prisma.matricula.count({ where: { estado: "EN_PROGRESO" } }),
-      prisma.matricula.count({ where: { estado: "APROBADO" } }),
-      prisma.certificado.count({ where: { estado: "EMITIDO" } }),
-      prisma.entrega.count({ where: { estado: "ENVIADA" } }),
+      prisma.fiel.count({ where: { estado: "ACTIVO", bautizado: true } }),
+      prisma.fiel.count({ where: { createdAt: rangoMes() } }),
       prisma.asistenciaCongregacional.count({ where: { fecha: { gte: inicioDeHoy() } } }),
-      prisma.inscripcion.aggregate({ _sum: { montoPagado: true } }),
+      prisma.asistenciaCongregacional.count({ where: { fecha: { gte: hace30 } } }),
+      prisma.asistenciaCongregacional.findMany({ where: { servicio: "DOMINGO", fecha: { gte: hace28 } }, select: { fecha: true } }),
+      prisma.grupo.count({ where: { estado: "ACTIVO" } }),
+      prisma.fiel.count({ where: { estado: "ACTIVO", grupoId: null } }),
+      prisma.registroOfrenda.findMany({ where: { fecha: rangoMes() }, select: { tipo: true, monto: true, estado: true } }),
+      prisma.registroOfrenda.findMany({ where: { fecha: rangoMes(-1) }, select: { monto: true } }),
     ]);
+
+  // Promedio de asistentes por domingo (últimas 4 semanas)
+  const porDomingo = new Map<string, number>();
+  domingos.forEach((d) => {
+    const k = d.fecha.toISOString().slice(0, 10);
+    porDomingo.set(k, (porDomingo.get(k) ?? 0) + 1);
+  });
+  const promedioDomingo = porDomingo.size ? Math.round([...porDomingo.values()].reduce((a, b) => a + b, 0) / porDomingo.size) : 0;
+
+  const totalMes = sumaMontos(mesActual);
+  const totalAnterior = sumaMontos(mesAnterior);
+  const pendientes = mesActual.filter((r) => r.estado !== "VERIFICADO");
   return {
     totalFieles,
     fielesActivos,
+    bautizados,
+    nuevosMes,
+    asistenciasHoy,
+    asistencias30,
+    promedioDomingo,
+    grupos,
+    sinGrupo,
+    finanzas: {
+      total: totalMes,
+      diezmos: sumaMontos(mesActual.filter((r) => r.tipo === "DIEZMO")),
+      ofrendas: sumaMontos(mesActual.filter((r) => r.tipo === "OFRENDA")),
+      otros: sumaMontos(mesActual.filter((r) => r.tipo !== "DIEZMO" && r.tipo !== "OFRENDA")),
+      variacion: totalAnterior ? Math.round(((totalMes - totalAnterior) / totalAnterior) * 100) : null,
+      porVerificar: pendientes.length,
+      montoPorVerificar: sumaMontos(pendientes),
+    },
+  };
+}
+
+/** Apartado "Academia" del pastor: cursos, estudiantes, calificación y certificados. */
+export async function dashboardAcademia() {
+  const [cursos, enCurso, aprobados, vencidos, certificados, certsPorFirmar, tareasPendientes, ingresosMes, inscripcionesPendientes] =
+    await Promise.all([
+      prisma.curso.count({ where: { estado: "ACTIVO" } }),
+      prisma.matricula.count({ where: { estado: "EN_PROGRESO" } }),
+      prisma.matricula.count({ where: { estado: "APROBADO" } }),
+      prisma.matricula.count({ where: { estado: "EN_PROGRESO", fechaVencimiento: { lt: new Date() } } }),
+      prisma.certificado.count({ where: { estado: "EMITIDO" } }),
+      prisma.certificado.count({ where: { estado: "EN_FIRMA", firmaSupervisorAt: { not: null }, firmaPastorAt: null } }),
+      prisma.entrega.count({ where: { estado: "ENVIADA" } }),
+      prisma.inscripcion.aggregate({ where: { fecha: rangoMes() }, _sum: { montoPagado: true } }),
+      prisma.inscripcion.count({ where: { estadoPago: "PENDIENTE" } }),
+    ]);
+  const totalMatriculas = await prisma.matricula.count({ where: { estado: { not: "RETIRADO" } } });
+  return {
+    cursos,
     enCurso,
     aprobados,
+    vencidos,
     certificados,
+    certsPorFirmar,
     tareasPendientes,
-    asistenciasHoy,
-    ingresos: Number(pagos._sum.montoPagado ?? 0),
+    ingresosMes: Number(ingresosMes._sum.montoPagado ?? 0),
+    inscripcionesPendientes,
+    tasaAprobacion: totalMatriculas ? Math.round((aprobados / totalMatriculas) * 100) : 0,
   };
 }
 

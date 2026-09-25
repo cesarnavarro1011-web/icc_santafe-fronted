@@ -34,9 +34,9 @@ Sin `SMTP_HOST` en `.env`, los correos (códigos OTP, confirmaciones) se imprime
 | Rol | Qué hace |
 | --- | --- |
 | Superadmin | Todo, sin restricciones (incluido registrar asistencia cualquier semana) |
-| Pastor | **Auditor**: ve todo y supervisa a los supervisores. Gestiona catálogo, fieles, bautismos, pagos, usuarios, asignaciones, grupos y el cronograma; da la firma final de certificados. No registra asistencia ni califica |
+| Pastor | **Auditor**: ve todo y supervisa a los supervisores. Gestiona catálogo, fieles, bautismos, pagos, usuarios, asignaciones, grupos y el cronograma; verifica diezmos y ofrendas; da la firma final de certificados. No registra asistencia ni califica |
 | Supervisor | Supervisa los cursos asignados: control de calidad, asistencia de clases, firma de certificados |
-| Líder | Su grupo (Mi grupo), fieles y bautismos; nombra marcadores; registra la asistencia de la iglesia cuando su grupo tiene turno |
+| Líder | Su grupo (Mi grupo), fieles y bautismos; nombra marcadores; registra la asistencia cuando su grupo tiene turno y los diezmos y ofrendas recogidos |
 | Marcador | Fiel del grupo que apoya al líder registrando la asistencia cuando su grupo tiene turno |
 | Maestro | Sus cursos: tareas, exámenes, asistencia de clases y aprobación |
 | Estudiante | Sus cursos, entregas, exámenes, asistencia y certificados |
