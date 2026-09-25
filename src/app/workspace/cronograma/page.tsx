@@ -32,7 +32,7 @@ export default async function CronogramaPage() {
       orderBy: [{ semana: "asc" }, { grupo: { nombre: "asc" } }],
     }),
     prisma.grupo.findMany({ where: { estado: "ACTIVO" }, orderBy: { nombre: "asc" }, include: { lider: true } }),
-    // Grupos propios para resaltarlos (líder: los que lidera; marcador: el suyo)
+    // Grupos propios para resaltarlos
     prisma.grupo.findMany({
       where: { OR: [{ liderId: user.fielId }, { miembros: { some: { id: user.fielId } } }] },
       select: { id: true },

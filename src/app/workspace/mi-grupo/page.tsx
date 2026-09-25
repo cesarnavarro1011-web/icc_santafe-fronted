@@ -1,16 +1,14 @@
 import Link from "next/link";
-import { CalendarRange, ClipboardCheck, UserMinus, UsersRound } from "lucide-react";
+import { CalendarRange, ClipboardCheck , UsersRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ActionButton } from "@/components/workspace/action-button";
 import { EmptyState, PageHeader, Panel } from "@/components/workspace/ui-kit";
 import { fecha } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { ROL_LABEL } from "@/lib/roles";
 import { requirePage } from "@/lib/server/session";
 import { domingoDe, hoyISO, lunesDe } from "@/server/turnos";
-import { cambiarMarcador } from "./actions";
 
 export default async function MiGrupoPage() {
   const user = await requirePage(["LIDER"]);
@@ -39,7 +37,7 @@ export default async function MiGrupoPage() {
     <>
       <PageHeader
         title="Mi grupo"
-        description="Nombra marcadores entre tus fieles: te ayudan a registrar la asistencia cuando tu grupo tiene turno"
+        description="Tus fieles y los turnos en que tu grupo registra la asistencia de la iglesia"
       />
       {grupos.map((g) => {
         const turnoActual = g.turnos.find((t) => t.semana.getTime() === lunes.getTime());
@@ -48,7 +46,7 @@ export default async function MiGrupoPage() {
             <div className="grid gap-4 lg:grid-cols-3">
               <Panel title={g.nombre} className="lg:col-span-2">
                 <p className="text-muted-foreground text-sm">
-                  {g.miembros.length} miembros · {g.miembros.filter((m) => m.usuario?.rol === "MARCADOR").length} marcadores
+                  {g.miembros.length} miembros
                 </p>
                 {g.descripcion && <p className="text-muted-foreground mt-1 text-xs">{g.descripcion}</p>}
               </Panel>
@@ -84,7 +82,6 @@ export default async function MiGrupoPage() {
                     <TableHead>Fiel</TableHead>
                     <TableHead>Celular</TableHead>
                     <TableHead>Acceso</TableHead>
-                    <TableHead className="text-right">Marcador</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -99,20 +96,7 @@ export default async function MiGrupoPage() {
                         </TableCell>
                         <TableCell className="text-xs">{m.celular ?? "—"}</TableCell>
                         <TableCell>
-                          {rol ? <Badge variant={rol === "MARCADOR" ? "info" : "muted"}>{ROL_LABEL[rol]}</Badge> : <span className="text-muted-foreground text-xs">Sin acceso</span>}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {rol === "MARCADOR" ? (
-                            <ActionButton size="sm" variant="outline" confirm={`¿Quitar a ${m.nombre} como marcador?`} successMessage="Ya no es marcador" action={cambiarMarcador.bind(null, m.id, false)}>
-                              <UserMinus /> Quitar
-                            </ActionButton>
-                          ) : rol === "ESTUDIANTE" ? (
-                            <ActionButton size="sm" successMessage={`${m.nombre} ahora es marcador`} action={cambiarMarcador.bind(null, m.id, true)}>
-                              <ClipboardCheck /> Nombrar marcador
-                            </ActionButton>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">{esLider ? "" : rol ? "No aplica" : "Necesita acceso"}</span>
-                          )}
+                          {rol ? <Badge variant="muted">{ROL_LABEL[rol]}</Badge> : <span className="text-muted-foreground text-xs">Sin acceso</span>}
                         </TableCell>
                       </TableRow>
                     );

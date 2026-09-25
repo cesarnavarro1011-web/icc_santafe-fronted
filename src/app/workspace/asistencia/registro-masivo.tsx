@@ -14,7 +14,7 @@ type Props = {
   fieles: { value: string; label: string }[];
   servicios: { value: string; label: string }[];
   hoy: string;
-  /** Límites de la semana del turno (líder / marcador) */
+  /** Límites de la semana del turno (líder) */
   min?: string;
   max?: string;
 };

@@ -1,0 +1,8 @@
+-- Se elimina el rol MARCADOR: quienes lo tenían pasan a ESTUDIANTE
+UPDATE "Usuario" SET "rol" = 'ESTUDIANTE' WHERE "rol" = 'MARCADOR';
+ALTER TYPE "Rol" RENAME TO "Rol_old";
+CREATE TYPE "Rol" AS ENUM ('SUPERADMIN', 'PASTOR', 'SUPERVISOR', 'LIDER', 'MAESTRO', 'ESTUDIANTE');
+ALTER TABLE "Usuario" ALTER COLUMN "rol" DROP DEFAULT;
+ALTER TABLE "Usuario" ALTER COLUMN "rol" TYPE "Rol" USING ("rol"::text::"Rol");
+ALTER TABLE "Usuario" ALTER COLUMN "rol" SET DEFAULT 'ESTUDIANTE';
+DROP TYPE "Rol_old";

@@ -5,7 +5,7 @@ import type { UsuarioSesion } from "@/lib/server/session";
 
 // ============================================================
 //  Cronograma de asistencia: cada semana (lunes a domingo) uno o
-//  varios grupos tienen turno. Su líder y sus marcadores son quienes
+//  varios grupos tienen turno. Su líder es quien
 //  registran la asistencia de los servicios de esa semana.
 // ============================================================
 
@@ -41,15 +41,11 @@ export function turnosDeSemana(lunes: Date) {
   });
 }
 
-/** Grupos en los que la persona registra: los que lidera (líder) o al que pertenece (marcador). */
+/** Grupos que lidera la persona (en los que registra asistencia). */
 async function gruposDelUsuario(user: UsuarioSesion) {
   if (user.rol === "LIDER") {
     const g = await prisma.grupo.findMany({ where: { liderId: user.fielId, estado: "ACTIVO" }, select: { id: true } });
     return g.map((x) => x.id);
-  }
-  if (user.rol === "MARCADOR") {
-    const f = await prisma.fiel.findUnique({ where: { id: user.fielId }, select: { grupoId: true } });
-    return f?.grupoId ? [f.grupoId] : [];
   }
   return [];
 }
@@ -60,19 +56,16 @@ export type PermisoRegistro =
 
 /**
  * ¿Puede registrar asistencia de la iglesia en la semana de `fecha`?
- * Superadmin siempre; líder y marcador solo si su grupo tiene turno esa semana.
+ * Superadmin siempre; el líder solo si su grupo tiene turno esa semana.
  */
 export async function permisoRegistro(user: UsuarioSesion, fecha: string = hoyISO()): Promise<PermisoRegistro> {
   if (user.rol === "SUPERADMIN") return { puede: true, libre: true, grupos: [] };
-  if (user.rol !== "LIDER" && user.rol !== "MARCADOR") {
+  if (user.rol !== "LIDER") {
     return { puede: false, motivo: "Tu rol puede consultar la asistencia, pero no registrarla." };
   }
   const grupos = await gruposDelUsuario(user);
   if (grupos.length === 0) {
-    return {
-      puede: false,
-      motivo: user.rol === "LIDER" ? "Aún no tienes un grupo asignado. Pídele al pastor que te asigne uno." : "No perteneces a ningún grupo todavía.",
-    };
+    return { puede: false, motivo: "Aún no tienes un grupo asignado. Pídele al pastor que te asigne uno." };
   }
   const lunes = lunesDe(fecha);
   const turnos = await prisma.turnoAsistencia.findMany({

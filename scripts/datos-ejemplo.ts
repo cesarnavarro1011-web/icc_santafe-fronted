@@ -76,7 +76,7 @@ async function crear() {
     { doc: "03", nombre: "Jorge", apellido: "Maestro", usuario: "demo.maestro2", rol: "MAESTRO", cargos: ["Maestro", "Sonido"], bautizado: true },
     { doc: "04", nombre: "Laura", apellido: "Líder", usuario: "demo.lider1", rol: "LIDER", cargos: ["Líder", "Ministerio de alabanza"], bautizado: true },
     { doc: "05", nombre: "Carlos", apellido: "Líder", usuario: "demo.lider2", rol: "LIDER", cargos: ["Líder"], bautizado: true },
-    { doc: "06", nombre: "Sofía", apellido: "Marcadora", usuario: "demo.marcador", rol: "MARCADOR", cargos: ["Ujier / servidor"], bautizado: true },
+    { doc: "06", nombre: "Sofía", apellido: "Servidora", usuario: "demo.servidora", rol: "ESTUDIANTE", cargos: ["Ujier / servidor"], bautizado: true },
     ...["Valentina Rojas", "Santiago Gómez", "Isabella Díaz", "Mateo Herrera", "Camila Torres", "Samuel Castro", "Mariana Vargas", "Daniel Moreno", "Gabriela Ruiz", "Sebastián Ortiz"].map(
       (n, i): P => {
         const [nombre, apellido] = n.split(" ");
@@ -121,10 +121,10 @@ async function crear() {
   // César (fiel real, rol estudiante) también se inscribe para ver la vista del estudiante
   const cesar = await prisma.fiel.findUnique({ where: { codigo: "F-1004355591" } });
 
-  // Grupos, marcador y cronograma
+  // Grupos y cronograma
   const jovenes = await prisma.grupo.create({ data: { nombre: "DEMO Jóvenes", liderId: fiel["demo.lider1"].id, descripcion: "Grupo de ejemplo" } });
   const matrimonios = await prisma.grupo.create({ data: { nombre: "DEMO Matrimonios", liderId: fiel["demo.lider2"].id, descripcion: "Grupo de ejemplo" } });
-  const miembrosJ = [fiel["demo.lider1"], fiel["demo.marcador"], ...estudiantes.slice(0, 5), fiel["17"]];
+  const miembrosJ = [fiel["demo.lider1"], fiel["demo.servidora"], ...estudiantes.slice(0, 5), fiel["17"]];
   const miembrosM = [fiel["demo.lider2"], ...estudiantes.slice(5), fiel["18"], fiel["19"]];
   await prisma.fiel.updateMany({ where: { id: { in: miembrosJ.map((f) => f.id) } }, data: { grupoId: jovenes.id } });
   await prisma.fiel.updateMany({ where: { id: { in: miembrosM.map((f) => f.id) } }, data: { grupoId: matrimonios.id } });

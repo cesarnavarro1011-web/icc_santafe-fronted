@@ -8,7 +8,6 @@ export const ROLES = [
   "PASTOR",
   "SUPERVISOR",
   "LIDER",
-  "MARCADOR",
   "MAESTRO",
   "ESTUDIANTE",
 ] as const;
@@ -20,7 +19,6 @@ export const ROL_LABEL: Record<RolUsuario, string> = {
   PASTOR: "Pastor",
   SUPERVISOR: "Supervisor",
   LIDER: "Líder",
-  MARCADOR: "Marcador",
   MAESTRO: "Maestro",
   ESTUDIANTE: "Estudiante",
 };
@@ -45,15 +43,15 @@ export const R = {
   /** Firma de supervisor en certificados */
   FIRMA_SUPERVISOR: ["SUPERADMIN", "SUPERVISOR"],
   /** Ver la asistencia de la iglesia (registrar depende del turno semanal) */
-  ASISTENCIA_IGLESIA: ["SUPERADMIN", "PASTOR", "LIDER", "MARCADOR"],
+  ASISTENCIA_IGLESIA: ["SUPERADMIN", "PASTOR", "LIDER"],
   /** Pueden registrar asistencia de la iglesia cuando su grupo tiene turno */
-  REGISTRA_POR_TURNO: ["LIDER", "MARCADOR"],
+  REGISTRA_POR_TURNO: ["LIDER"],
   /** Diezmos y ofrendas: el líder registra, el pastor verifica */
   FINANZAS: ["SUPERADMIN", "PASTOR", "LIDER"],
   REGISTRA_OFRENDAS: ["SUPERADMIN", "LIDER"],
   VERIFICA_OFRENDAS: ["SUPERADMIN", "PASTOR"],
   /** Estudian: su Inicio es el tablero del estudiante */
-  APRENDIZ: ["ESTUDIANTE", "MARCADOR"],
+  APRENDIZ: ["ESTUDIANTE"],
   TODOS: ROLES,
 } as const satisfies Record<string, readonly RolUsuario[]>;
 

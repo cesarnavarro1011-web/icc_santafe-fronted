@@ -1,6 +1,6 @@
 import type { Grupo } from "@prisma/client";
 import { Pencil, Plus, Trash2, UsersRound } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -91,7 +91,6 @@ export default async function GruposPage() {
       ) : (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {grupos.map((g) => {
-            const marcadores = g.miembros.filter((m) => m.usuario?.rol === "MARCADOR");
             return (
               <section key={g.id} className="bg-card flex flex-col rounded-2xl border shadow-sm">
                 <div className="flex items-start justify-between gap-2 border-b p-4">
@@ -108,19 +107,7 @@ export default async function GruposPage() {
                     <span>
                       <strong className="tabular-nums">{g.miembros.length}</strong> <span className="text-muted-foreground">miembros</span>
                     </span>
-                    <span>
-                      <strong className="tabular-nums">{marcadores.length}</strong> <span className="text-muted-foreground">marcadores</span>
-                    </span>
                   </div>
-                  {marcadores.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {marcadores.map((m) => (
-                        <Badge key={m.id} variant="info">
-                          {m.nombre} {m.apellido}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
                   <p className="text-muted-foreground text-xs">
                     Próximo turno: {g.turnos[0] ? `semana del ${fecha(g.turnos[0].semana)}` : "sin programar"}
                   </p>

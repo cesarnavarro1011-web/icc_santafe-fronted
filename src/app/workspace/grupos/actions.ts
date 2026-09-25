@@ -49,12 +49,9 @@ export async function asignarMiembros(grupoId: string, fielIds: string[]) {
     if (grupo.liderId) ids.add(grupo.liderId);
     const actuales = await prisma.fiel.findMany({ where: { grupoId }, select: { id: true } });
     const salen = actuales.map((f) => f.id).filter((id) => !ids.has(id));
-    const entran = [...ids].filter((id) => !actuales.some((f) => f.id === id));
     await prisma.$transaction([
       prisma.fiel.updateMany({ where: { id: { in: salen } }, data: { grupoId: null } }),
       prisma.fiel.updateMany({ where: { id: { in: [...ids] } }, data: { grupoId } }),
-      // Quien sale del grupo, o llega desde otro, deja de ser marcador: cada líder elige los suyos
-      prisma.usuario.updateMany({ where: { rol: "MARCADOR", fielId: { in: [...salen, ...entran] } }, data: { rol: "ESTUDIANTE" } }),
     ]);
     revalidar();
     return ids.size;
@@ -64,11 +61,7 @@ export async function asignarMiembros(grupoId: string, fielIds: string[]) {
 export async function eliminarGrupo(id: string) {
   return runAction(async () => {
     await requireUser(R.ADMIN);
-    const miembros = await prisma.fiel.findMany({ where: { grupoId: id }, select: { id: true } });
-    await prisma.$transaction([
-      prisma.usuario.updateMany({ where: { rol: "MARCADOR", fielId: { in: miembros.map((m) => m.id) } }, data: { rol: "ESTUDIANTE" } }),
-      prisma.grupo.delete({ where: { id } }), // los turnos se borran en cascada; los miembros quedan sin grupo
-    ]);
+    await prisma.grupo.delete({ where: { id } }); // los turnos se borran en cascada; los miembros quedan sin grupo
     revalidar();
     return null;
   });

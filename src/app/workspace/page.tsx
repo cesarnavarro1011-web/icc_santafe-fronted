@@ -236,8 +236,6 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
     const hoy = hoyISO();
     const [turnos, permiso] = await Promise.all([turnosDeSemana(lunesDe(hoy)), permisoRegistro(user, hoy)]);
     const meToca = permiso.puede && !permiso.libre;
-    // Al marcador solo se le avisa cuando le toca; pastor, superadmin y líder siempre ven el turno
-    if (!meToca && user.rol === "MARCADOR") return null;
     return (
       <div className={cn("flex flex-wrap items-center gap-3 rounded-xl border p-4", meToca ? "border-emerald-200 bg-emerald-50" : "bg-card")}>
         <CalendarRange className={cn("size-5", meToca ? "text-emerald-600" : "text-violet-500")} />

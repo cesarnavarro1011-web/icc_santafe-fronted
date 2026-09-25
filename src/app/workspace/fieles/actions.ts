@@ -39,17 +39,12 @@ export async function guardarFiel(id: string | null, fd: FormData) {
     const { documento, otroCargo, grupoId: g, ...data } = fielSchema.parse(formObj(fd));
     const grupoId = g ?? null;
 
-    const anterior = id ? await prisma.fiel.findUniqueOrThrow({ where: { id }, include: { usuario: true } }) : null;
+    const anterior = id ? await prisma.fiel.findUniqueOrThrow({ where: { id } }) : null;
     await validarGrupo(user, grupoId, anterior?.grupoId ?? null);
 
     const fiel = id
       ? await prisma.fiel.update({ where: { id }, data: { ...data, grupoId } })
       : await prisma.fiel.create({ data: { ...data, grupoId, codigo: codigoFiel(documento) } });
-
-    // Si cambia de líder deja de ser marcador del grupo anterior
-    if (anterior && anterior.grupoId !== grupoId && anterior.usuario?.rol === "MARCADOR") {
-      await prisma.usuario.update({ where: { id: anterior.usuario.id }, data: { rol: "ESTUDIANTE" } });
-    }
 
     // Cargos: los marcados + uno nuevo escrito a mano
     const cargos = new Set(fd.getAll("cargos").map(String).filter(Boolean));

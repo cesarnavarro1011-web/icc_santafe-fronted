@@ -20,7 +20,6 @@ enum Rol {
   PASTOR
   SUPERVISOR
   LIDER
-  MARCADOR // registra asistencia de los servicios cuando su grupo tiene turno
   MAESTRO
   ESTUDIANTE
 }
