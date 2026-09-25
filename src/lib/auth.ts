@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import { HASH_FALSO, hashPassword, verifyPassword } from "@/lib/server/password";
 import { buscarUsuarioPor } from "@/lib/server/identificador";
+import { confiarDispositivo, enviarCodigoLogin, necesitaVerificacion, verificarCodigoLogin } from "@/server/dos-pasos";
 import { ipDe, limpiarIntentos, minutosBloqueo, registrarIntento, REGLAS } from "@/lib/server/rate-limit";
 
 import type { RolUsuario } from "@/lib/roles";
@@ -36,6 +37,8 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         identificador: { label: "Usuario, ID o correo", type: "text" },
         password: { label: "Contraseña", type: "password" },
+        codigo: { label: "Código de verificación", type: "text" },
+        dispositivo: { label: "Dispositivo", type: "text" },
       },
       async authorize(credentials, req) {
         const identificador = credentials?.identificador?.trim();
@@ -57,6 +60,7 @@ export const authOptions: NextAuthOptions = {
         // Se agrega el correo como tercera opción.
         const usuario = await prisma.usuario.findFirst({
           where: buscarUsuarioPor(identificador),
+          include: { fiel: { select: { nombre: true, celular: true, correo: true } } },
         });
         if (!usuario) {
           await verifyPassword(password, HASH_FALSO); // mismo tiempo de respuesta exista o no el usuario
@@ -67,6 +71,22 @@ export const authOptions: NextAuthOptions = {
         if (!ok) return fallo();
         if (!usuario.activo) throw new Error("Tu cuenta está inactiva.");
         limpiarIntentos(claveUsuario);
+
+        // Verificación en dos pasos solo en dispositivos nuevos o cada 30 días
+        const dispositivo = credentials?.dispositivo;
+        if (await necesitaVerificacion(usuario.id, dispositivo)) {
+          const codigo = credentials?.codigo?.trim();
+          if (!codigo) {
+            const envio = await enviarCodigoLogin(usuario);
+            // El cliente lee este mensaje y abre el modal para escribir el código
+            if (envio) throw new Error(`2FA:${envio.canal}:${envio.destino}`);
+            console.warn(`[2fa] ${usuario.usuario} no tiene celular ni correo: entra sin verificación en dos pasos.`);
+          } else {
+            if (!(await verificarCodigoLogin(usuario.id, codigo))) throw new Error("2FA_INVALIDO");
+            const ua = req?.headers?.["user-agent"];
+            await confiarDispositivo(usuario.id, dispositivo, Array.isArray(ua) ? ua[0] : ua);
+          }
+        }
 
         await prisma.usuario.update({
           where: { id: usuario.id },

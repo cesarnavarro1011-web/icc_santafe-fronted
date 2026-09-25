@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios, { isAxiosError } from "axios";
-import { toast } from "sonner";
+import { toast } from "@/components/workspace/aviso";
 
 type Step = "request" | "verify" | "reset" | "done";
 

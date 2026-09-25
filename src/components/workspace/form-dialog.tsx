@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/workspace/aviso";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { confirmar, toast } from "@/components/workspace/aviso";
 import { Copy, KeyRound, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -112,8 +112,12 @@ export function RestablecerButton({ usuarioId, nombre }: { usuarioId: string; no
         aria-label="Restablecer contraseña"
         title="Restablecer contraseña"
         disabled={pending}
-        onClick={() => {
-          if (!window.confirm(`¿Generar una contraseña temporal nueva para ${nombre}?`)) return;
+        onClick={async () => {
+          const ok = await confirmar("Su contraseña actual dejará de funcionar y deberá cambiarla al entrar.", {
+            titulo: `¿Generar una contraseña temporal para ${nombre}?`,
+            textoConfirmar: "Generar",
+          });
+          if (!ok) return;
           startTransition(async () => {
             const res = await restablecerPassword(usuarioId);
             if (!res.success) return void toast.error(res.error);

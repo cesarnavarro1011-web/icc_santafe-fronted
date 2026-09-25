@@ -9,7 +9,22 @@ import { z } from "zod";
 import { useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Eye, EyeOff } from "lucide-react"; // Iconos ver/ocultar
+import { Eye, EyeOff, ShieldCheck } from "lucide-react"; // Iconos ver/ocultar
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+/** Identificador aleatorio de este navegador (para recordar dispositivos de confianza). */
+function idDispositivo() {
+  try {
+    let id = localStorage.getItem("icc_dispositivo");
+    if (!id) {
+      id = crypto.randomUUID() + crypto.randomUUID().slice(0, 8);
+      localStorage.setItem("icc_dispositivo", id);
+    }
+    return id;
+  } catch {
+    return "";
+  }
+}
 
 interface LoginFormProps {
   setFormType: React.Dispatch<React.SetStateAction<"login" | "recovery">>;
@@ -44,26 +59,80 @@ export function LoginForm({
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
 
+  // Verificación en dos pasos: el servidor responde "2FA:<canal>:<destino>" y se abre el modal
+  const [credenciales, setCredenciales] = useState<FormData | null>(null);
+  const [verificacion, setVerificacion] = useState<{ canal: string; destino: string } | null>(null);
+  const [codigo, setCodigo] = useState("");
+  const [errorCodigo, setErrorCodigo] = useState("");
+  const [verificando, setVerificando] = useState(false);
+
+  const entrar = useCallback(() => {
+    setSuccess(true);
+    setVerificacion(null);
+    const destino = searchParams.get("callbackUrl");
+    // Solo rutas internas: "//otro-sitio.com" o "/\otro" llevarían fuera de la aplicación
+    const interna = destino && destino.startsWith("/") && !destino.startsWith("//") && !destino.startsWith("/\\");
+    router.push(interna ? destino : "/workspace");
+    router.refresh();
+  }, [router, searchParams]);
+
+  const intentar = useCallback(
+    async (data: FormData, codigoIngresado?: string) =>
+      signIn("credentials", { ...data, codigo: codigoIngresado ?? "", dispositivo: idDispositivo(), redirect: false }),
+    [],
+  );
+
   const onSubmit = useCallback(
     async (data: FormData) => {
       setLoading(true);
       setErrorMessage("");
       setSuccess(false);
-      const res = await signIn("credentials", { ...data, redirect: false });
+      const res = await intentar(data);
       setLoading(false);
+      if (res?.error?.startsWith("2FA:")) {
+        const [, canal, destino] = res.error.split(":");
+        setCredenciales(data);
+        setCodigo("");
+        setErrorCodigo("");
+        setVerificacion({ canal, destino });
+        return;
+      }
       if (!res || res.error) {
         setErrorMessage(res?.error === "CredentialsSignin" ? "Credenciales incorrectas" : res?.error || "Error al iniciar sesión");
         return;
       }
-      setSuccess(true);
-      const destino = searchParams.get("callbackUrl");
-      // Solo rutas internas: "//otro-sitio.com" o "/\\otro" llevarían fuera de la aplicación
-      const interna = destino && destino.startsWith("/") && !destino.startsWith("//") && !destino.startsWith("/\\");
-      router.push(interna ? destino : "/workspace");
-      router.refresh();
+      entrar();
     },
-    [router, searchParams]
+    [intentar, entrar]
   );
+
+  async function verificarCodigo(e: React.FormEvent) {
+    e.preventDefault();
+    if (!credenciales || codigo.length !== 6) return;
+    setVerificando(true);
+    setErrorCodigo("");
+    const res = await intentar(credenciales, codigo);
+    setVerificando(false);
+    if (!res || res.error) {
+      setErrorCodigo(res?.error === "2FA_INVALIDO" ? "Código incorrecto o vencido." : res?.error || "No se pudo verificar.");
+      return;
+    }
+    entrar();
+  }
+
+  async function reenviar() {
+    if (!credenciales) return;
+    setVerificando(true);
+    setErrorCodigo("");
+    const res = await intentar(credenciales);
+    setVerificando(false);
+    if (res?.error?.startsWith("2FA:")) {
+      const [, canal, destino] = res.error.split(":");
+      setVerificacion({ canal, destino });
+      setCodigo("");
+      setErrorCodigo("Te enviamos un código nuevo.");
+    } else if (res?.error) setErrorCodigo(res.error);
+  }
 
   return (
     <form
@@ -140,6 +209,39 @@ export function LoginForm({
           Recuperar cuenta
         </button>
       </div>
+
+      <Dialog open={!!verificacion} onOpenChange={(o) => !o && setVerificacion(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader className="items-center text-center sm:text-center">
+            <span className="mb-1 flex size-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <ShieldCheck className="size-6" />
+            </span>
+            <DialogTitle>Verifica que eres tú</DialogTitle>
+            <DialogDescription className="text-center">
+              Te enviamos un código de 6 dígitos por <strong>{verificacion?.canal}</strong> al <strong>{verificacion?.destino}</strong>. Vence en 5 minutos.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={verificarCodigo} className="grid gap-3">
+            <Input
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              placeholder="000000"
+              className="h-12 text-center font-mono text-2xl tracking-[0.5em]"
+            />
+            {errorCodigo && <p className={cn("text-center text-xs", errorCodigo.startsWith("Te enviamos") ? "text-emerald-600" : "text-red-500")}>{errorCodigo}</p>}
+            <Button type="submit" disabled={codigo.length !== 6 || verificando}>
+              {verificando ? "Verificando..." : "Verificar y entrar"}
+            </Button>
+            <button type="button" onClick={reenviar} disabled={verificando} className="text-muted-foreground text-xs underline">
+              ¿No te llegó? Reenviar código
+            </button>
+            <p className="text-muted-foreground text-center text-[11px]">No te lo volveremos a pedir en este dispositivo durante 30 días.</p>
+          </form>
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }

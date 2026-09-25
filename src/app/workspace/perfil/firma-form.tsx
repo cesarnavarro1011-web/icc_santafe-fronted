@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/workspace/aviso";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { subirFirma } from "./actions";

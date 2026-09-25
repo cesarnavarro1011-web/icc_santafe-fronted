@@ -78,3 +78,13 @@ export async function quitarFirma() {
     return null;
   });
 }
+
+/** Olvida todos los dispositivos de confianza: el próximo inicio de sesión pedirá el código. */
+export async function olvidarDispositivos() {
+  return runAction(async () => {
+    const user = await requireUser();
+    const { count } = await prisma.dispositivoConfiable.deleteMany({ where: { usuarioId: user.id } });
+    revalidatePath("/workspace/perfil");
+    return count;
+  });
+}

@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/workspace/aviso";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/workspace/ui-kit";
@@ -22,7 +22,7 @@ export function PasswordForm({ redirigirA }: { redirigirA?: string }) {
     startTransition(async () => {
       const res = await cambiarPassword(fd);
       if (!res.success) return void toast.error(res.error);
-      toast.success("Contraseña actualizada");
+      toast.success("Contraseña actualizada", { description: "La próxima vez inicia sesión con tu nueva contraseña." });
       form.reset();
       await update(); // refresca el token (quita la marca de contraseña temporal)
       if (redirigirA) {

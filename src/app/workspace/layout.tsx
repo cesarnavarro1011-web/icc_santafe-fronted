@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Toaster } from "sonner";
+import { AvisoHost } from "@/components/workspace/aviso";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Providers } from "@/components/workspace/providers";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -37,7 +37,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
           <main className="flex flex-1 flex-col gap-5 p-4 md:p-6">{children}</main>
         </SidebarInset>
       </SidebarProvider>
-      <Toaster richColors position="top-right" />
+      <AvisoHost />
     </Providers>
   );
 }

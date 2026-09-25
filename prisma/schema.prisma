@@ -116,6 +116,7 @@ enum EstadoOfrenda {
 
 enum PropositoOtp {
   CAMBIO_PASSWORD
+  LOGIN_2FA // verificación en dos pasos (WhatsApp o correo)
 }
 
 // ── Personas y acceso ────────────────────────────────────────
@@ -178,7 +179,23 @@ model Usuario {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  otps OtpCode[]
+  otps         OtpCode[]
+  dispositivos DispositivoConfiable[]
+}
+
+/// Dispositivo/navegador donde el usuario ya verificó el código de WhatsApp.
+/// Mientras la verificación sea reciente (30 días) no se vuelve a pedir.
+model DispositivoConfiable {
+  id                 String   @id @default(cuid())
+  usuarioId          String
+  usuario            Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tokenHash          String // SHA-256 del identificador guardado en el navegador
+  nombre             String? // navegador / sistema (para mostrarlo en el perfil)
+  ultimaVerificacion DateTime @default(now())
+  ultimoUso          DateTime @default(now())
+  createdAt          DateTime @default(now())
+
+  @@unique([usuarioId, tokenHash])
 }
 
 /// Reemplaza CacheService "OTP_CHANGE_<id>"

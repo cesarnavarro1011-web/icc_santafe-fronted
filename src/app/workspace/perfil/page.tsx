@@ -10,7 +10,7 @@ import { edad, ESTADO_CIVIL, fecha, isoDate, opciones } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { ROL_LABEL } from "@/lib/roles";
 import { requirePage } from "@/lib/server/session";
-import { actualizarPerfil, quitarFirma } from "./actions";
+import { actualizarPerfil, olvidarDispositivos, quitarFirma } from "./actions";
 import { FirmaForm } from "./firma-form";
 import { PasswordForm } from "./password-form";
 
@@ -25,7 +25,10 @@ function Dato({ label, valor }: { label: string; valor: React.ReactNode }) {
 
 export default async function PerfilPage() {
   const user = await requirePage();
-  const u = await prisma.usuario.findUniqueOrThrow({ where: { id: user.id }, include: { fiel: true } });
+  const u = await prisma.usuario.findUniqueOrThrow({
+    where: { id: user.id },
+    include: { fiel: true, dispositivos: { orderBy: { ultimoUso: "desc" } } },
+  });
   const f = u.fiel;
   const firma = ["SUPERADMIN", "PASTOR", "SUPERVISOR", "MAESTRO"].includes(u.rol);
   const iniciales = `${f.nombre[0] ?? ""}${f.apellido[0] ?? ""}`.toUpperCase();
@@ -122,6 +125,38 @@ export default async function PerfilPage() {
               <Dato label="Estado civil" valor={f.estadoCivil ? ESTADO_CIVIL[f.estadoCivil] : null} />
               <Dato label="Bautizado" valor={f.bautizado ? "Sí" : "No"} />
             </dl>
+          </Panel>
+          <Panel
+            title="Verificación en dos pasos"
+            actions={
+              u.dispositivos.length > 0 && (
+                <ActionButton
+                  size="sm"
+                  variant="outline"
+                  confirm="En todos tus dispositivos se volverá a pedir el código de WhatsApp al iniciar sesión."
+                  successMessage="Listo: se pedirá el código en tu próximo inicio de sesión"
+                  action={olvidarDispositivos}
+                >
+                  Olvidar dispositivos
+                </ActionButton>
+              )
+            }
+          >
+            <p className="text-muted-foreground text-sm">
+              Al entrar desde un dispositivo nuevo, o cada 30 días, te enviamos un código por WhatsApp al{" "}
+              <strong className="text-foreground">{f.celular ? `***${f.celular.replace(/\D/g, "").slice(-4)}` : "celular registrado"}</strong>.
+              {!f.celular && " No tienes celular registrado: el código llegará a tu correo."}
+            </p>
+            {u.dispositivos.length > 0 && (
+              <ul className="mt-3 divide-y rounded-lg border text-sm">
+                {u.dispositivos.map((d) => (
+                  <li key={d.id} className="flex items-center justify-between px-3 py-2">
+                    <span>{d.nombre ?? "Navegador"}</span>
+                    <span className="text-muted-foreground text-xs">Verificado {fecha(d.ultimaVerificacion)} · último uso {fecha(d.ultimoUso)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Panel>
           <Panel title="Cambiar contraseña">
             <PasswordForm />

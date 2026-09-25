@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition, type ReactNode } from "react";
-import { toast } from "sonner";
+import { confirmar, toast } from "@/components/workspace/aviso";
 import { Button } from "@/components/ui/button";
 import type { ActionResult } from "@/lib/action-result";
 
@@ -13,7 +13,10 @@ type Props = {
   successMessage?: string;
 } & Omit<React.ComponentProps<typeof Button>, "onClick" | "children">;
 
-/** Botón que ejecuta una server action (con confirmación opcional). */
+// Confirmaciones de acciones destructivas: botón rojo en el modal
+const ACCION_PELIGROSA = /eliminar|quitar|anular|desactivar|borrar/i;
+
+/** Botón que ejecuta una server action (con confirmación opcional en modal). */
 export function ActionButton({ action, children, confirm, successMessage = "Listo", ...props }: Props) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -22,8 +25,8 @@ export function ActionButton({ action, children, confirm, successMessage = "List
     <Button
       {...props}
       disabled={pending || props.disabled}
-      onClick={() => {
-        if (confirm && !window.confirm(confirm)) return;
+      onClick={async () => {
+        if (confirm && !(await confirmar(confirm, { peligro: ACCION_PELIGROSA.test(confirm) }))) return;
         startTransition(async () => {
           const res = await action();
           if (!res.success) return void toast.error(res.error);
