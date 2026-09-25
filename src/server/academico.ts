@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ACADEMICO } from "@/lib/config";
 import { fecha } from "@/lib/labels";
 import { R, tieneRol } from "@/lib/roles";
-import { enviarCorreo, plantillaCorreo } from "@/lib/server/mail";
+import { enviarCorreo, esc, plantillaCorreo } from "@/lib/server/mail";
 import { ErrorNegocio } from "@/lib/server/errors";
 import type { UsuarioSesion } from "@/lib/server/session";
 import { nuevoCodigo } from "./codigos";
@@ -112,8 +112,8 @@ export async function inscribirEnCurso(fielId: string, cursoId: string) {
       subject: `¡Inscripción confirmada! Curso: ${curso.nombre}`,
       html: plantillaCorreo(
         "¡Bienvenido al curso!",
-        `<p>Hola <strong>${fiel.nombre}</strong>,</p>
-         <p>Tu inscripción al curso <strong>${curso.nombre}</strong> ha sido confirmada.</p>
+        `<p>Hola <strong>${esc(fiel.nombre)}</strong>,</p>
+         <p>Tu inscripción al curso <strong>${esc(curso.nombre)}</strong> ha sido confirmada.</p>
          <p><strong>Inicio:</strong> ${fecha(inicio)}<br/><strong>Vence:</strong> ${fecha(vence)} (${curso.duracionDias} días)</p>
          <p>Encuentras el contenido en <strong>"Mis cursos"</strong> del espacio de estudio.</p>`,
       ),

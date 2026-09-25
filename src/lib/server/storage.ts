@@ -66,7 +66,20 @@ export async function leerUpload(
   if (!file || typeof file === "string" || file.size === 0) throw new ErrorNegocio(`Selecciona ${opts.etiqueta}.`);
   if (file.size > opts.maxMB * MB) throw new ErrorNegocio(`El archivo supera ${opts.maxMB} MB.`);
   if (!opts.tipos.includes(file.type)) throw new ErrorNegocio(`Formato no permitido para ${opts.etiqueta}.`);
-  return { nombre: limpiarNombre(file.name) || "archivo", buffer: Buffer.from(await file.arrayBuffer()) };
+  const buffer = Buffer.from(await file.arrayBuffer());
+  // El tipo que manda el navegador se puede falsificar: se revisa el contenido real
+  const real = tipoReal(buffer);
+  if (!real || !opts.tipos.includes(real)) throw new ErrorNegocio(`El archivo no es un ${opts.etiqueta.replace(/^(la|el|tu) /, "")} válido.`);
+  return { nombre: limpiarNombre(file.name) || "archivo", buffer };
+}
+
+/** Tipo según los primeros bytes del archivo (PDF, PNG, JPEG, WebP). */
+export function tipoReal(b: Buffer): string | null {
+  if (b.subarray(0, 5).toString("latin1") === "%PDF-") return "application/pdf";
+  if (b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b.subarray(0, 4).toString("latin1") === "RIFF" && b.subarray(8, 12).toString("latin1") === "WEBP") return "image/webp";
+  return null;
 }
 
 export const MIME_POR_EXT: Record<string, string> = {

@@ -1,8 +1,20 @@
 import "server-only";
 import bcrypt from "bcryptjs";
-import { createHash, randomInt, timingSafeEqual } from "crypto";
+import { ErrorNegocio } from "./errors";
+import { createHash, randomBytes, randomInt, timingSafeEqual } from "crypto";
 
 const LEGACY_PREFIX = "sha256:";
+
+/** Hash de una clave aleatoria: se compara cuando el usuario no existe, para que el login tarde lo mismo. */
+export const HASH_FALSO = bcrypt.hashSync(randomBytes(16).toString("hex"), 10);
+
+/** Mínimo 8 caracteres, con al menos una letra y un número. */
+export function validarPassword(p: string) {
+  if (p.length < 8 || !/[A-Za-z]/.test(p) || !/\d/.test(p)) {
+    throw new ErrorNegocio("La contraseña debe tener al menos 8 caracteres, con letras y números.");
+  }
+  if (p.length > 200) throw new ErrorNegocio("La contraseña es demasiado larga.");
+}
 
 export function hashPassword(plain: string) {
   return bcrypt.hash(plain, 10);
@@ -31,9 +43,19 @@ export async function verifyPassword(plain: string, stored: string) {
   return { ok: await bcrypt.compare(plain, stored), needsRehash: false };
 }
 
+/** 10 caracteres con letras y al menos 2 números (cumple la política de contraseñas). */
 export function passwordTemporal() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  return Array.from({ length: 10 }, () => chars[randomInt(chars.length)]).join("");
+  const letras = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz";
+  const numeros = "23456789";
+  const chars = [
+    ...Array.from({ length: 8 }, () => letras[randomInt(letras.length)]),
+    ...Array.from({ length: 2 }, () => numeros[randomInt(numeros.length)]),
+  ];
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
 }
 
 export function codigoOtp() {

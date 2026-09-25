@@ -2,8 +2,9 @@ import "server-only";
 import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { ErrorNegocio } from "@/lib/server/errors";
-import { enmascararCorreo, enviarCorreo, plantillaCorreo } from "@/lib/server/mail";
-import { codigoOtp, hashPassword } from "@/lib/server/password";
+import { enviarCorreo, plantillaCorreo } from "@/lib/server/mail";
+import { codigoOtp, hashPassword, validarPassword } from "@/lib/server/password";
+import { minutosBloqueo, registrarIntento, REGLAS } from "@/lib/server/rate-limit";
 import { buscarUsuarioPor } from "@/lib/server/identificador";
 
 // Reemplaza CacheService "OTP_CHANGE_<id>" (solicitarOtpCambioPassword / confirmarCambioPasswordConOtp)
@@ -20,15 +21,28 @@ async function buscarUsuario(identificador: string) {
     where: buscarUsuarioPor(id),
     include: { fiel: true },
   });
-  if (!usuario) throw new ErrorNegocio("El usuario o ID no existe en el sistema.");
-  if (!usuario.activo) throw new ErrorNegocio("Tu cuenta está inactiva.");
+  // Mensaje genérico: no revela si el usuario existe
+  if (!usuario || !usuario.activo) throw new ErrorNegocio("Código incorrecto o expirado.");
   return usuario;
 }
 
-export async function solicitarOtp(identificador: string) {
-  const usuario = await buscarUsuario(identificador);
-  const correo = usuario.fiel.correo?.trim();
-  if (!correo) throw new ErrorNegocio("No tienes un correo registrado. Pide al pastor que lo agregue a tu ficha.");
+/**
+ * Envía un código si el usuario existe y tiene correo. La respuesta es la misma en
+ * todos los casos para no revelar qué usuarios existen (enumeración de cuentas).
+ */
+export async function solicitarOtp(identificador: string, ip: string) {
+  const id = identificador.trim().toLowerCase();
+  if (!id) throw new ErrorNegocio("Ingresa tu usuario, documento o correo.");
+  const claveU = `otp:u:${id}`;
+  const esperaU = minutosBloqueo(claveU);
+  if (esperaU) throw new ErrorNegocio(`Ya pediste varios códigos. Intenta de nuevo en ${esperaU} min.`);
+  registrarIntento(claveU, REGLAS.otpUsuario);
+  limitarIp(ip);
+
+  const generico = { mensaje: "Si el usuario existe y tiene correo registrado, le enviamos un código de 6 dígitos." };
+  const usuario = await prisma.usuario.findFirst({ where: buscarUsuarioPor(identificador), include: { fiel: true } });
+  const correo = usuario?.activo ? usuario.fiel.correo?.trim() : null;
+  if (!usuario || !correo) return generico;
 
   const code = codigoOtp();
   await prisma.$transaction([
@@ -57,10 +71,18 @@ export async function solicitarOtp(identificador: string) {
        <p style="color:#94a3b8;font-size:12px;">Si no solicitaste este cambio, ignora este mensaje.</p>`,
     ),
   });
-  return { destino: enmascararCorreo(correo) };
+  return generico;
 }
 
-export async function verificarOtp(identificador: string, code: string, consumir: boolean) {
+function limitarIp(ip: string) {
+  const clave = `recuperacion:ip:${ip}`;
+  const espera = minutosBloqueo(clave);
+  if (espera) throw new ErrorNegocio(`Demasiados intentos. Intenta de nuevo en ${espera} min.`);
+  registrarIntento(clave, REGLAS.recuperacionIp);
+}
+
+export async function verificarOtp(identificador: string, code: string, consumir: boolean, ip: string) {
+  limitarIp(ip);
   const usuario = await buscarUsuario(identificador);
   const otp = await prisma.otpCode.findFirst({
     where: { usuarioId: usuario.id, proposito: "CAMBIO_PASSWORD", usedAt: null, expiresAt: { gt: new Date() } },
@@ -75,9 +97,9 @@ export async function verificarOtp(identificador: string, code: string, consumir
   return usuario;
 }
 
-export async function restablecerConOtp(identificador: string, code: string, password: string) {
-  if (password.length < 6) throw new ErrorNegocio("La contraseña debe tener al menos 6 caracteres.");
-  const usuario = await verificarOtp(identificador, code, true);
+export async function restablecerConOtp(identificador: string, code: string, password: string, ip: string) {
+  validarPassword(password);
+  const usuario = await verificarOtp(identificador, code, true, ip);
   await prisma.usuario.update({
     where: { id: usuario.id },
     data: { passwordHash: await hashPassword(password), debeCambiarPassword: false },

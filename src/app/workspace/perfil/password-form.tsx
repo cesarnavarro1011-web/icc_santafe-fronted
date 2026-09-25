@@ -39,12 +39,13 @@ export function PasswordForm({ redirigirA }: { redirigirA?: string }) {
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Nueva contraseña">
-          <Input name="nueva" type="password" autoComplete="new-password" minLength={6} required />
+          <Input name="nueva" type="password" autoComplete="new-password" minLength={8} required />
         </Field>
         <Field label="Confirmar nueva contraseña">
-          <Input name="confirmar" type="password" autoComplete="new-password" minLength={6} required />
+          <Input name="confirmar" type="password" autoComplete="new-password" minLength={8} required />
         </Field>
       </div>
+      <p className="text-muted-foreground text-xs">Mínimo 8 caracteres, con letras y números.</p>
       <div className="flex justify-end">
         <Button type="submit" disabled={pending}>
           {pending ? "Guardando..." : "Cambiar contraseña"}

@@ -26,6 +26,19 @@ const fielSchema = z.object({
   otroCargo: zTextoOpc,
 });
 
+/**
+ * El líder solo gestiona fieles de su grupo o sin grupo (visitantes nuevos),
+ * y nunca a personas con un rol superior al suyo.
+ */
+async function exigirFielGestionable(user: UsuarioSesion, fielId: string) {
+  if (user.rol !== "LIDER") return;
+  const f = await prisma.fiel.findUniqueOrThrow({ where: { id: fielId }, include: { grupo: true, usuario: { select: { rol: true } } } });
+  const rol = f.usuario?.rol;
+  const esUnoMismo = f.id === user.fielId;
+  if (rol && rol !== "ESTUDIANTE" && !esUnoMismo) throw new ErrorNegocio("No puedes modificar a esta persona. Pídeselo al pastor.");
+  if (f.grupo && f.grupo.liderId !== user.fielId) throw new ErrorNegocio("Esta persona pertenece a otro grupo. Pídeselo al pastor.");
+}
+
 /** El líder solo puede dejar fieles en sus propios grupos (o sin cambiarlos). */
 async function validarGrupo(user: UsuarioSesion, grupoId: string | null, actual: string | null) {
   if (grupoId === actual || user.rol !== "LIDER" || !grupoId) return;
@@ -39,6 +52,7 @@ export async function guardarFiel(id: string | null, fd: FormData) {
     const { documento, otroCargo, grupoId: g, ...data } = fielSchema.parse(formObj(fd));
     const grupoId = g ?? null;
 
+    if (id) await exigirFielGestionable(user, id);
     const anterior = id ? await prisma.fiel.findUniqueOrThrow({ where: { id } }) : null;
     await validarGrupo(user, grupoId, anterior?.grupoId ?? null);
 
@@ -66,7 +80,8 @@ export async function guardarFiel(id: string | null, fd: FormData) {
 
 export async function cambiarEstadoFiel(id: string, estado: EstadoRegistro) {
   return runAction(async () => {
-    await requireUser(R.PASTORAL);
+    const user = await requireUser(R.PASTORAL);
+    await exigirFielGestionable(user, id);
     await prisma.fiel.update({ where: { id }, data: { estado } });
     revalidatePath("/workspace/fieles");
     return null;

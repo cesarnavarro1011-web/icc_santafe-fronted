@@ -11,7 +11,7 @@ type Correo = {
   attachments?: { filename: string; content: Buffer }[];
 };
 
-let transporter: nodemailer.Transporter | null = null;
+let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
 
 function getTransporter() {
   if (!process.env.SMTP_HOST) return null;
@@ -44,6 +44,11 @@ export async function enviarCorreo({ to, subject, html, tipo, attachments }: Cor
     });
     return false;
   }
+}
+
+/** Escapa texto que viene de usuarios antes de meterlo en el HTML de un correo. */
+export function esc(v: unknown) {
+  return String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
 export function plantillaCorreo(titulo: string, cuerpo: string) {

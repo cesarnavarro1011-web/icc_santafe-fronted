@@ -57,7 +57,9 @@ export function LoginForm({
       }
       setSuccess(true);
       const destino = searchParams.get("callbackUrl");
-      router.push(destino?.startsWith("/") ? destino : "/workspace");
+      // Solo rutas internas: "//otro-sitio.com" o "/\\otro" llevarían fuera de la aplicación
+      const interna = destino && destino.startsWith("/") && !destino.startsWith("//") && !destino.startsWith("/\\");
+      router.push(interna ? destino : "/workspace");
       router.refresh();
     },
     [router, searchParams]

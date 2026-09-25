@@ -81,6 +81,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ tipo: st
         "Content-Type": mime,
         "Content-Disposition": `${descargar ? "attachment" : "inline"}; filename="${encodeURIComponent(archivo.nombre)}"`,
         "Cache-Control": tipo === "portada" ? "private, max-age=86400" : "private, max-age=60",
+        "X-Content-Type-Options": "nosniff",
+        // Imágenes en modo aislado; el visor de PDF de los navegadores no funciona con "sandbox"
+        ...(mime.startsWith("image/") ? { "Content-Security-Policy": "default-src 'none'; img-src 'self' data:; sandbox" } : {}),
       },
     });
   } catch {

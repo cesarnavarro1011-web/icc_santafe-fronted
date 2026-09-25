@@ -26,8 +26,12 @@ const resetSchema = z
   .object({
     identifier: z.string().min(1),
     code: z.string().length(6),
-    password: z.string().min(6, "Mínimo 6 caracteres"),
-    confirmPassword: z.string().min(6, "Confirme la contraseña"),
+    password: z
+      .string()
+      .min(8, "Mínimo 8 caracteres")
+      .regex(/[A-Za-z]/, "Debe incluir letras")
+      .regex(/\d/, "Debe incluir números"),
+    confirmPassword: z.string().min(1, "Confirme la contraseña"),
   })
   .refine((d) => d.password === d.confirmPassword, {
     message: "Las contraseñas no coinciden",
@@ -80,8 +84,8 @@ export function RecoveryForm({
       });
       setIdentifier(data.identifier);
       setStep("verify");
-      toast.success("Código enviado", {
-        description: "Revisa tu correo.",
+      toast.success("Solicitud recibida", {
+        description: "Si el usuario tiene correo registrado, le llegará un código.",
       });
     } catch (e) {
       setErrorMessage(mensajeError(e, "Error al solicitar recuperación"));
@@ -157,7 +161,7 @@ export function RecoveryForm({
         </h1>
         <p className="text-sm text-muted-foreground">
           {step === "request" && "Ingresa tu correo o número de identidad."}
-          {step === "verify" && `Se envió un código a tu correo: ${identifier}`}
+          {step === "verify" && "Si el usuario tiene correo registrado, le enviamos un código de 6 dígitos. Revisa tu bandeja y el spam."}
           {step === "reset" && "Ingresa y confirma tu nueva contraseña."}
           {step === "done" && "Ya puedes iniciar sesión."}
         </p>

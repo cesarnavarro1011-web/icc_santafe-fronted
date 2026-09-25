@@ -1,8 +1,10 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, verifyPassword } from "@/lib/server/password";
+import { HASH_FALSO, hashPassword, verifyPassword } from "@/lib/server/password";
 import { buscarUsuarioPor } from "@/lib/server/identificador";
+import { ipDe, limpiarIntentos, minutosBloqueo, registrarIntento, REGLAS } from "@/lib/server/rate-limit";
+
 import type { RolUsuario } from "@/lib/roles";
 
 const SESION_HORAS = 8;
@@ -35,21 +37,36 @@ export const authOptions: NextAuthOptions = {
         identificador: { label: "Usuario, ID o correo", type: "text" },
         password: { label: "Contraseña", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         const identificador = credentials?.identificador?.trim();
         const password = credentials?.password ?? "";
-        if (!identificador || !password) return null;
+        if (!identificador || !password || identificador.length > 120 || password.length > 200) return null;
+
+        // Fuerza bruta: se bloquea por usuario y por IP tras varios intentos fallidos
+        const claveUsuario = `login:u:${identificador.toLowerCase()}`;
+        const claveIp = `login:ip:${ipDe(req?.headers)}`;
+        const espera = Math.max(minutosBloqueo(claveUsuario), minutosBloqueo(claveIp));
+        if (espera) throw new Error(`Demasiados intentos fallidos. Intenta de nuevo en ${espera} min.`);
+        const fallo = () => {
+          registrarIntento(claveUsuario, REGLAS.loginUsuario);
+          registrarIntento(claveIp, REGLAS.loginIp);
+          return null;
+        };
 
         // Igual que el sistema anterior: se puede entrar con usuario o con el ID de fiel.
         // Se agrega el correo como tercera opción.
         const usuario = await prisma.usuario.findFirst({
           where: buscarUsuarioPor(identificador),
         });
-        if (!usuario) return null;
+        if (!usuario) {
+          await verifyPassword(password, HASH_FALSO); // mismo tiempo de respuesta exista o no el usuario
+          return fallo();
+        }
 
         const { ok, needsRehash } = await verifyPassword(password, usuario.passwordHash);
-        if (!ok) return null;
+        if (!ok) return fallo();
         if (!usuario.activo) throw new Error("Tu cuenta está inactiva.");
+        limpiarIntentos(claveUsuario);
 
         await prisma.usuario.update({
           where: { id: usuario.id },

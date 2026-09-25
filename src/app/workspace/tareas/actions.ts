@@ -8,7 +8,7 @@ import { R } from "@/lib/roles";
 import { runAction } from "@/lib/server/action";
 import { ErrorNegocio } from "@/lib/server/errors";
 import { formObj, zTextoOpc } from "@/lib/server/form";
-import { enviarCorreo, plantillaCorreo } from "@/lib/server/mail";
+import { enviarCorreo, esc, plantillaCorreo } from "@/lib/server/mail";
 import { requireUser } from "@/lib/server/session";
 import { exigirCursoEnAlcance, recalcularMatricula, registrarNota } from "@/server/academico";
 
@@ -63,10 +63,10 @@ export async function calificarEntrega(entregaId: string, fd: FormData) {
         subject: `Calificación: ${e.actividad.nombre}`,
         html: plantillaCorreo(
           "Tu entrega fue revisada",
-          `<p>Hola <strong>${e.fiel.nombre}</strong>,</p>
-           <p>Tu entrega "<strong>${e.actividad.nombre}</strong>" fue <strong>${ETIQUETA[d.estado]}</strong>.</p>
+          `<p>Hola <strong>${esc(e.fiel.nombre)}</strong>,</p>
+           <p>Tu entrega "<strong>${esc(e.actividad.nombre)}</strong>" fue <strong>${ETIQUETA[d.estado]}</strong>.</p>
            ${d.nota !== null && d.estado !== "DEVUELTA" ? `<p>Nota: <strong>${d.nota}/${max}</strong></p>` : ""}
-           ${d.comentario ? `<p>Comentario: ${d.comentario}</p>` : ""}`,
+           ${d.comentario ? `<p>Comentario: ${esc(d.comentario)}</p>` : ""}`,
         ),
       });
     }

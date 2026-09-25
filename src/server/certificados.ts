@@ -5,7 +5,7 @@ import { ACADEMICO, NOMBRE_IGLESIA } from "@/lib/config";
 import { fecha } from "@/lib/labels";
 import { R, tieneRol } from "@/lib/roles";
 import { ErrorNegocio } from "@/lib/server/errors";
-import { enviarCorreo, plantillaCorreo } from "@/lib/server/mail";
+import { enviarCorreo, esc, plantillaCorreo } from "@/lib/server/mail";
 import type { UsuarioSesion } from "@/lib/server/session";
 import { carpetaFiel, guardarArchivo, leerArchivo } from "@/lib/server/storage";
 import { asistenciaEstudiante, exigirCursoEnAlcance } from "./academico";
@@ -117,8 +117,8 @@ async function emitirCertificado(certificadoId: string) {
       subject: `Tu certificado de ${c.curso.nombre}`,
       html: plantillaCorreo(
         "¡Felicitaciones!",
-        `<p>Hola <strong>${c.fiel.nombre}</strong>,</p>
-         <p>Completaste exitosamente el curso <strong>${c.curso.nombre}</strong>. Adjuntamos tu certificado.</p>
+        `<p>Hola <strong>${esc(c.fiel.nombre)}</strong>,</p>
+         <p>Completaste exitosamente el curso <strong>${esc(c.curso.nombre)}</strong>. Adjuntamos tu certificado.</p>
          <p>También puedes descargarlo desde <strong>Mis cursos</strong>. ¡Que Dios te bendiga!</p>`,
       ),
       attachments: [{ filename: `Certificado_${c.codigo}.pdf`, content: Buffer.from(pdf) }],
