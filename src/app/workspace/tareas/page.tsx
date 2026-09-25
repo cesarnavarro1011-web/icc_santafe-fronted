@@ -1,5 +1,6 @@
+import Link from "next/link";
 import type { EstadoEntrega, Prisma } from "@prisma/client";
-import { ExternalLink, FileText, Inbox, Pen } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, Inbox, Pen, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,14 +18,22 @@ import { requirePage } from "@/lib/server/session";
 import { cursosEnAlcance, filtroCurso } from "@/server/academico";
 import { calificarEntrega } from "./actions";
 
-export default async function TareasPage({ searchParams }: { searchParams: Promise<{ q?: string; estado?: string }> }) {
+export default async function TareasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; estado?: string; fiel?: string; curso?: string }>;
+}) {
   const user = await requirePage(R.DOCENTE);
-  const { q, estado = "ENVIADA" } = await searchParams;
+  const { q, estado = "ENVIADA", fiel, curso } = await searchParams;
   const alcance = await cursosEnAlcance(user);
   const califica = tieneRol(user.rol, R.CALIFICA);
 
   const where: Prisma.EntregaWhereInput = {
-    actividad: { cursoId: filtroCurso(alcance), tipo: "TAREA" },
+    actividad: {
+      cursoId: curso && (alcance === null || alcance.includes(curso)) ? curso : filtroCurso(alcance),
+      tipo: "TAREA",
+    },
+    ...(fiel ? { fielId: fiel } : {}),
     ...(estado !== "TODAS" ? { estado: estado as EstadoEntrega } : {}),
     ...(q
       ? {
@@ -43,8 +52,33 @@ export default async function TareasPage({ searchParams }: { searchParams: Promi
     include: { fiel: true, actividad: { include: { curso: true } }, nota: true },
   });
 
+  // Filtro que llega desde "Cursos activos" (etiqueta "por revisar" de un alumno)
+  const filtroAlumno =
+    fiel || curso
+      ? await Promise.all([
+          fiel ? prisma.fiel.findUnique({ where: { id: fiel }, select: { nombre: true, apellido: true } }) : null,
+          curso ? prisma.curso.findUnique({ where: { id: curso }, select: { nombre: true } }) : null,
+        ])
+      : null;
+
   return (
     <>
+      {filtroAlumno && (
+        <div className="flex flex-wrap items-center gap-2">
+          {curso && (
+            <Link href={`/workspace/clases/${curso}`} className="text-muted-foreground flex items-center gap-1 text-sm hover:underline">
+              <ArrowLeft className="size-4" /> Volver al curso
+            </Link>
+          )}
+          <span className="ml-auto flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-sm text-violet-800">
+            Mostrando {filtroAlumno[0] ? `${filtroAlumno[0].nombre} ${filtroAlumno[0].apellido}` : "todas"}
+            {filtroAlumno[1] && ` · ${filtroAlumno[1].nombre}`}
+            <Link href="/workspace/tareas" aria-label="Quitar filtro" className="rounded-full p-0.5 hover:bg-violet-100">
+              <X className="size-3.5" />
+            </Link>
+          </span>
+        </div>
+      )}
       <PageHeader title={califica ? "Revisar tareas" : "Tareas entregadas"} description={califica ? `${entregas.length} entregas` : `${entregas.length} entregas · solo consulta`} />
       <SearchBar
         placeholder="Buscar por estudiante o actividad..."

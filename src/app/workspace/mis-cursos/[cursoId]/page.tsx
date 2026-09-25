@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft,
   Award,
   BookOpen,
   CalendarCheck,
@@ -15,8 +14,10 @@ import {
   Hand,
   Hourglass,
   Layers,
+  Mail,
   PenLine,
   Trophy,
+  UserRound,
   XCircle,
 } from "lucide-react";
 import type { Actividad } from "@prisma/client";
@@ -59,7 +60,13 @@ export default async function CursoEstudiantePage({
   const matricula = await prisma.matricula.findUnique({
     where: { fielId_cursoId: { fielId: user.fielId, cursoId } },
     include: {
-      curso: { include: { actividades: { orderBy: [{ nivel: "asc" }, { orden: "asc" }, { createdAt: "asc" }] } } },
+      maestro: { select: { nombre: true, apellido: true, correo: true } },
+      curso: {
+        include: {
+          actividades: { orderBy: [{ nivel: "asc" }, { orden: "asc" }, { createdAt: "asc" }] },
+          maestros: { where: { rol: "TITULAR" }, take: 1, select: { fiel: { select: { nombre: true, apellido: true, correo: true } } } },
+        },
+      },
       notas: true,
       entregas: { orderBy: { fechaEntrega: "desc" } },
       intentos: { orderBy: { createdAt: "desc" } },
@@ -72,6 +79,8 @@ export default async function CursoEstudiantePage({
   const notaDe = (actividadId: string) => matricula.notas.find((n) => n.actividadId === actividadId);
   const dias = diasRestantes(matricula.fechaVencimiento);
   const certificado = matricula.certificados.find((c) => c.estado === "EMITIDO");
+  // El maestro asignado al matricularse (después del pago) o, si no hay, el titular del curso
+  const maestro = matricula.maestro ?? curso.maestros[0]?.fiel ?? null;
 
   const href = (i: string) => `/workspace/mis-cursos/${cursoId}?item=${i}`;
   const linkClase = (activo: boolean) =>
@@ -82,28 +91,44 @@ export default async function CursoEstudiantePage({
 
   return (
     <>
-      <Link href="/workspace/mis-cursos" className="text-muted-foreground flex items-center gap-1 text-sm hover:underline">
-        <ArrowLeft className="size-4" /> Mis cursos
-      </Link>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">{curso.nombre}</h1>
-          <p className="text-muted-foreground text-sm">
-            {curso.codigo} · Vence {fecha(matricula.fechaVencimiento)}
-            {dias !== null && dias >= 0 && matricula.estado === "EN_PROGRESO" && ` (${dias} días)`}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <EstadoBadge valor={matricula.estado} mapa={ESTADO_MATRICULA} />
-          <div className="w-40">
-            <div className="flex justify-between text-xs">
-              <span>Progreso</span>
-              <span>{matricula.progreso}%</span>
+      {/* Cabecera del curso: portada o degradado, con estado y progreso */}
+      <CursoPortada portada={urlPortada(curso)} className={cn("rounded-2xl p-6", curso.imagenPath && "min-h-44")}>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-bold">{curso.nombre}</h1>
+            <p className="mt-1 text-white/85">{curso.descripcion || "Comienza tu camino de aprendizaje."}</p>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium">
+              {describirHorario(curso) && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1">
+                  <CalendarClock className="size-3.5" /> {describirHorario(curso)}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1">
+                <UserRound className="size-3.5" /> Maestro: {maestro ? `${maestro.nombre} ${maestro.apellido}` : "por asignar"}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1">
+                {curso.codigo} · Vence {fecha(matricula.fechaVencimiento)}
+                {dias !== null && dias >= 0 && matricula.estado === "EN_PROGRESO" && ` (${dias} días)`}
+              </span>
             </div>
-            <Progress value={matricula.progreso} />
+          </div>
+          <div className="w-full space-y-2 rounded-xl bg-white/15 p-3 backdrop-blur-sm sm:w-56">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-white/80">Estado</span>
+              <EstadoBadge valor={matricula.estado} mapa={ESTADO_MATRICULA} />
+            </div>
+            <div>
+              <div className="mb-1 flex justify-between text-xs">
+                <span className="text-white/80">Progreso</span>
+                <span className="font-semibold tabular-nums">{matricula.progreso}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-white/25">
+                <div className="h-full rounded-full bg-white transition-all" style={{ width: `${matricula.progreso}%` }} />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </CursoPortada>
 
       {/* Espacio de trabajo del curso: la barra principal se contrae para darle ancho */}
       <ContraerSidebar />
@@ -159,15 +184,29 @@ export default async function CursoEstudiantePage({
       const examenes = curso.actividades.filter((a) => a.tipo === "EXAMEN").length;
       return (
         <>
-          <CursoPortada portada={urlPortada(curso)} className={cn("rounded-2xl p-6", curso.imagenPath && "flex min-h-52 flex-col justify-end")}>
-            <h2 className="text-2xl font-bold">{curso.nombre}</h2>
-            <p className="mt-1 text-white/85">{curso.descripcion || "Comienza tu camino de aprendizaje."}</p>
-            {describirHorario(curso) && (
-              <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium">
-                <CalendarClock className="size-3.5" /> {describirHorario(curso)}
-              </p>
-            )}
-          </CursoPortada>
+          {maestro && (
+            <Panel>
+              <div className="flex items-center gap-3">
+                <span className="flex size-11 items-center justify-center rounded-full bg-violet-100 font-bold text-violet-700">
+                  {maestro.nombre[0]}
+                  {maestro.apellido[0]}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-muted-foreground text-xs uppercase">Tu maestro</p>
+                  <p className="font-semibold">
+                    {maestro.nombre} {maestro.apellido}
+                  </p>
+                </div>
+                {maestro.correo && (
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={`mailto:${maestro.correo}`}>
+                      <Mail /> Escribirle
+                    </a>
+                  </Button>
+                )}
+              </div>
+            </Panel>
+          )}
           <div className="grid grid-cols-3 gap-4">
             <Resumen icon={Layers} valor={niveles.length} label="Niveles" />
             <Resumen icon={FileText} valor={tareas} label="Tareas" />

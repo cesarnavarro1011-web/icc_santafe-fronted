@@ -12,7 +12,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:importar": "tsx --env-file=.env scripts/importar-excel.ts",
-    "db:superadmin": "tsx --env-file=.env scripts/crear-superadmin.ts"
+    "db:superadmin": "tsx --env-file=.env scripts/crear-superadmin.ts",
+    "db:ejemplo": "tsx --env-file=.env --conditions=react-server scripts/datos-ejemplo.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

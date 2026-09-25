@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, CalendarCheck, ChevronRight, GraduationCap, Hourglass, ListChecks, Skull } from "lucide-react";
+import { BookOpen, CalendarCheck, ChevronRight, GraduationCap, Hourglass, ListChecks, Skull, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { CursoPortada, urlPortada } from "@/components/workspace/curso-portada";
@@ -15,7 +15,15 @@ export default async function MisCursosPage() {
   const user = await requirePage();
   const matriculas = await prisma.matricula.findMany({
     where: { fielId: user.fielId },
-    include: { curso: { include: { _count: { select: { actividades: true } } } } },
+    include: {
+      maestro: { select: { nombre: true, apellido: true, correo: true } },
+      curso: {
+        include: {
+          _count: { select: { actividades: true } },
+          maestros: { where: { rol: "TITULAR" }, take: 1, select: { fiel: { select: { nombre: true, apellido: true, correo: true } } } },
+        },
+      },
+    },
     orderBy: { fechaInicio: "desc" },
   });
   const asistencias = await Promise.all(matriculas.map((m) => asistenciaEstudiante(user.fielId, m.cursoId)));
@@ -79,6 +87,16 @@ export default async function MisCursosPage() {
                       <p className="mt-0.5">{m.curso._count.actividades} actividades</p>
                     </div>
                   </div>
+                  {(() => {
+                    const maestro = m.maestro ?? m.curso.maestros[0]?.fiel;
+                    return (
+                      <p className="flex items-center gap-1.5 text-xs">
+                        <UserRound className="size-3.5 text-violet-500" />
+                        <span className="text-muted-foreground">Tu maestro:</span>
+                        <span className="font-medium">{maestro ? `${maestro.nombre} ${maestro.apellido}` : "por asignar"}</span>
+                      </p>
+                    );
+                  })()}
                 </div>
                 <div className="bg-muted/40 flex items-center justify-center gap-1 border-t p-3 text-xs font-semibold text-violet-700">
                   Entrar al curso <ChevronRight className="size-3 transition-transform group-hover:translate-x-1" />

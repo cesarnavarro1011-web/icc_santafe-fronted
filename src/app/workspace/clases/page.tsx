@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Inbox, Presentation, Users } from "lucide-react";
+import { EquipoCursoInfo } from "@/components/workspace/equipo-curso";
 import { EmptyState, PageHeader } from "@/components/workspace/ui-kit";
 import { prisma } from "@/lib/prisma";
 import { R } from "@/lib/roles";
@@ -13,6 +14,8 @@ export default async function ClasesPage() {
     where: { id: filtroCurso(alcance), estado: "ACTIVO" },
     orderBy: { nombre: "asc" },
     include: {
+      maestros: { select: { rol: true, nivel: true, fiel: { select: { nombre: true, apellido: true } } } },
+      supervisores: { where: { estado: "ACTIVO" }, select: { fiel: { select: { nombre: true, apellido: true } } } },
       _count: { select: { matriculas: { where: { estado: "EN_PROGRESO" } } } },
       actividades: { select: { _count: { select: { entregas: { where: { estado: "ENVIADA" } } } } } },
     },
@@ -31,6 +34,7 @@ export default async function ClasesPage() {
               <Link key={c.id} href={`/workspace/clases/${c.id}`} className="bg-card group rounded-xl border p-5 shadow-sm transition hover:shadow-md">
                 <span className="text-muted-foreground font-mono text-xs">{c.codigo}</span>
                 <h3 className="mt-1 text-lg font-semibold">{c.nombre}</h3>
+                <EquipoCursoInfo equipo={c} className="mt-2" />
                 <div className="text-muted-foreground mt-3 flex gap-4 text-sm">
                   <span className="flex items-center gap-1">
                     <Users className="size-4" /> {c._count.matriculas} activos

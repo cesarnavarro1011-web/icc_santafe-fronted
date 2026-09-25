@@ -31,9 +31,16 @@ export function EncabezadoInicio({ puedeVolver }: { puedeVolver: boolean }) {
     <>
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-      <Link href="/workspace" className="text-muted-foreground text-sm hover:underline">
-        Espacio de estudio
-      </Link>
+      {/* Dentro de un curso, el encabezado lleva de vuelta a "Mis cursos" */}
+      {pathname.startsWith("/workspace/mis-cursos/") ? (
+        <Link href="/workspace/mis-cursos" className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm">
+          <ArrowLeft className="size-4" /> Mis cursos
+        </Link>
+      ) : (
+        <Link href="/workspace" className="text-muted-foreground text-sm hover:underline">
+          Espacio de estudio
+        </Link>
+      )}
     </>
   );
 }

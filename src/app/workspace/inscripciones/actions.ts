@@ -10,7 +10,7 @@ import { runAction } from "@/lib/server/action";
 import { formObj, zNumero, zTexto } from "@/lib/server/form";
 import { requireUser } from "@/lib/server/session";
 import { carpetaFiel, guardarArchivo, leerUpload } from "@/lib/server/storage";
-import { inscribirEnCurso } from "@/server/academico";
+import { exigirPuedeInscribirse, inscribirEnCurso } from "@/server/academico";
 import { nuevoCodigo } from "@/server/codigos";
 
 const pagoSchema = z.object({
@@ -47,6 +47,7 @@ export async function crearInscripcion(fd: FormData) {
   return runAction(async () => {
     const user = await requireUser(R.ADMIN);
     const d = nuevaSchema.parse(formObj(fd));
+    await exigirPuedeInscribirse(d.fielId, d.cursoId);
     const insc = await prisma.inscripcion.create({
       data: { ...d, codigo: nuevoCodigo("INS"), registradoPorId: user.fielId },
     });

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { runAction } from "@/lib/server/action";
 import { ErrorNegocio } from "@/lib/server/errors";
 import { requireUser } from "@/lib/server/session";
+import { exigirPuedeInscribirse } from "@/server/academico";
 import { nuevoCodigo } from "@/server/codigos";
 
 /**
@@ -18,12 +19,7 @@ export async function solicitarInscripcion(cursoId: string) {
     const curso = await prisma.curso.findUniqueOrThrow({ where: { id: cursoId } });
     if (curso.estado !== "ACTIVO") throw new ErrorNegocio("Este curso no está disponible.");
 
-    const [matricula, pendiente] = await Promise.all([
-      prisma.matricula.findUnique({ where: { fielId_cursoId: { fielId: user.fielId, cursoId } } }),
-      prisma.inscripcion.findFirst({ where: { fielId: user.fielId, cursoId, estadoPago: { in: ["PENDIENTE", "ABONO"] } } }),
-    ]);
-    if (matricula) throw new ErrorNegocio("Ya estás inscrito en este curso.");
-    if (pendiente) throw new ErrorNegocio("Ya tienes una solicitud en proceso para este curso.");
+    await exigirPuedeInscribirse(user.fielId, cursoId, "tu");
 
     await prisma.inscripcion.create({
       data: {

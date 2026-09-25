@@ -10,8 +10,9 @@ import { ESTADO_CERTIFICADO, fecha, opciones } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { R, tieneRol } from "@/lib/roles";
 import { requirePage } from "@/lib/server/session";
-import { cursosEnAlcance, filtroCurso } from "@/server/academico";
-import { anular, firmar } from "./actions";
+import { asistenciaEstudiante, cursosEnAlcance, filtroCurso } from "@/server/academico";
+import { anular } from "./actions";
+import { RevisionFirma, type DatosRevision } from "./revision-firma";
 
 function Check({ at }: { at: Date | null }) {
   return at ? <span title={fecha(at)} className="text-emerald-600">✓</span> : <span className="text-muted-foreground">—</span>;
@@ -39,11 +40,42 @@ export default async function CertificadosPage({ searchParams }: { searchParams:
       : {}),
   };
   const [certs, emitidos, pendSupervisor, pendPastor] = await Promise.all([
-    prisma.certificado.findMany({ where, include: { fiel: true, curso: true }, orderBy: { createdAt: "desc" }, take: 300 }),
+    prisma.certificado.findMany({ where, include: { fiel: true, curso: true, matricula: true }, orderBy: { createdAt: "desc" }, take: 300 }),
     prisma.certificado.count({ where: { ...base, estado: "EMITIDO" } }),
     prisma.certificado.count({ where: { ...base, estado: "EN_FIRMA", firmaSupervisorAt: null } }),
     prisma.certificado.count({ where: { ...base, estado: "EN_FIRMA", firmaSupervisorAt: { not: null }, firmaPastorAt: null } }),
   ]);
+
+  // Ficha de revisión de los certificados que este usuario puede firmar ahora (uno por uno)
+  const porFirmar = certs.filter(
+    (c) => c.estado === "EN_FIRMA" && ((firmaSupervisor && !c.firmaSupervisorAt) || (esAdmin && c.firmaSupervisorAt && !c.firmaPastorAt)),
+  );
+  const firmantes = await prisma.fiel.findMany({
+    where: { id: { in: porFirmar.flatMap((c) => [c.firmaMaestroId, c.firmaSupervisorId, c.firmaPastorId]).filter((x): x is string => !!x) } },
+    select: { id: true, nombre: true, apellido: true },
+  });
+  const nombreDe = (id: string | null) => {
+    const f = firmantes.find((x) => x.id === id);
+    return f ? `${f.nombre} ${f.apellido}` : null;
+  };
+  const revision = new Map<string, DatosRevision>();
+  for (const c of porFirmar) {
+    revision.set(c.id, {
+      id: c.id,
+      codigo: c.codigo,
+      estudiante: `${c.fiel.nombre} ${c.fiel.apellido}`,
+      curso: c.curso.nombre,
+      notaFinal: c.matricula?.notaFinal ?? null,
+      progreso: c.matricula?.progreso ?? null,
+      asistencia: await asistenciaEstudiante(c.fielId, c.cursoId),
+      firmas: [
+        { rol: "Maestro", nombre: nombreDe(c.firmaMaestroId), at: c.firmaMaestroAt },
+        { rol: "Supervisor", nombre: nombreDe(c.firmaSupervisorId), at: c.firmaSupervisorAt },
+        { rol: "Pastor", nombre: nombreDe(c.firmaPastorId), at: c.firmaPastorAt },
+      ],
+    });
+  }
+  const tieneFirma = !!(await prisma.usuario.findUnique({ where: { id: user.id }, select: { firmaPath: true } }))?.firmaPath;
 
   return (
     <>
@@ -98,15 +130,11 @@ export default async function CertificadosPage({ searchParams }: { searchParams:
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1.5">
-                        {enFirma && firmaSupervisor && !c.firmaSupervisorAt && (
-                          <ActionButton size="sm" confirm="¿Firmar este certificado como supervisor?" successMessage="Firmado. Pasa al pastor." action={firmar.bind(null, c.id, "SUPERVISOR")}>
-                            <Signature /> Firmar
-                          </ActionButton>
+                        {enFirma && firmaSupervisor && !c.firmaSupervisorAt && revision.get(c.id) && (
+                          <RevisionFirma c={revision.get(c.id)!} como="SUPERVISOR" tieneFirma={tieneFirma} />
                         )}
-                        {enFirma && esAdmin && c.firmaSupervisorAt && !c.firmaPastorAt && (
-                          <ActionButton size="sm" confirm="¿Firmar como pastor? Se generará y enviará el diploma PDF." successMessage="Certificado emitido" action={firmar.bind(null, c.id, "PASTOR")}>
-                            <Signature /> Firmar y emitir
-                          </ActionButton>
+                        {enFirma && esAdmin && c.firmaSupervisorAt && !c.firmaPastorAt && revision.get(c.id) && (
+                          <RevisionFirma c={revision.get(c.id)!} como="PASTOR" tieneFirma={tieneFirma} />
                         )}
                         {c.pdfPath && (
                           <Button size="icon-sm" variant="outline" asChild aria-label="Descargar">

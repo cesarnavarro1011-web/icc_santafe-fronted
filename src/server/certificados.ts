@@ -20,6 +20,9 @@ export async function iniciarCertificado(user: UsuarioSesion, matriculaId: strin
   const m = await prisma.matricula.findUniqueOrThrow({ where: { id: matriculaId } });
   await exigirCursoEnAlcance(user, m.cursoId);
 
+  if (m.progreso < 100) {
+    throw new ErrorNegocio(`Aún tiene actividades sin completar o sin calificar (progreso ${m.progreso}%).`);
+  }
   if (m.notaFinal < ACADEMICO.NOTA_MIN_APROBAR) {
     throw new ErrorNegocio(`La nota final (${m.notaFinal}) es menor a ${ACADEMICO.NOTA_MIN_APROBAR}.`);
   }

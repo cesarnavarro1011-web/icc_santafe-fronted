@@ -41,6 +41,40 @@ export async function exigirCursoEnAlcance(user: UsuarioSesion, cursoId: string)
 }
 
 // ============================================================
+//  Regla: un curso se cursa una sola vez
+// ============================================================
+
+const YA_CURSO: Record<string, { tu: string; fiel: string }> = {
+  APROBADO: { tu: "Ya cursaste y aprobaste este curso.", fiel: "Este fiel ya cursó y aprobó este curso." },
+  EN_PROGRESO: { tu: "Ya estás cursando este curso.", fiel: "Este fiel ya está cursando este curso." },
+  REPROBADO: { tu: "Ya cursaste este curso.", fiel: "Este fiel ya cursó este curso (reprobado)." },
+  VENCIDO: { tu: "Ya cursaste este curso.", fiel: "Este fiel ya cursó este curso (venció sin terminarlo)." },
+  RETIRADO: { tu: "Ya cursaste este curso.", fiel: "Este fiel ya cursó este curso (se retiró)." },
+};
+
+/**
+ * Un curso se toma una sola vez: lanza error si el fiel ya tiene (o tuvo) matrícula
+ * en el curso, o si ya hay una inscripción pendiente de pago.
+ */
+export async function exigirPuedeInscribirse(fielId: string, cursoId: string, sujeto: "tu" | "fiel" = "fiel") {
+  const [matricula, pendiente] = await Promise.all([
+    prisma.matricula.findUnique({ where: { fielId_cursoId: { fielId, cursoId } }, select: { estado: true } }),
+    prisma.inscripcion.findFirst({ where: { fielId, cursoId, estadoPago: { in: ["PENDIENTE", "ABONO"] } }, select: { codigo: true } }),
+  ]);
+  if (matricula) {
+    const m = YA_CURSO[matricula.estado];
+    throw new ErrorNegocio(`${m[sujeto]} Un curso solo se puede tomar una vez.`);
+  }
+  if (pendiente) {
+    throw new ErrorNegocio(
+      sujeto === "tu"
+        ? "Ya tienes una solicitud en proceso para este curso."
+        : `Este fiel ya tiene una inscripción pendiente para este curso (${pendiente.codigo}). Actualiza ese pago en lugar de crear otro.`,
+    );
+  }
+}
+
+// ============================================================
 //  Inscripción académica (antes inscribirEstudianteDesdePago)
 // ============================================================
 
