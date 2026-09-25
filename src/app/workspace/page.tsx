@@ -322,7 +322,7 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
         <div className="grid gap-3 md:grid-cols-3">
           <Atajo href="/workspace/tareas" icon={Inbox} label="Revisar tareas" />
           <Atajo href="/workspace/calificar-examenes" icon={CheckCheck} label="Calificar exámenes" />
-          <Atajo href="/workspace/clases" icon={Presentation} label="Mis clases" />
+          <Atajo href="/workspace/clases" icon={Presentation} label="Cursos activos" />
         </div>
       </>
     );

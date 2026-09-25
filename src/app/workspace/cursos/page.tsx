@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CursoPortada, urlPortada } from "@/components/workspace/curso-portada";
 import { FormDialog } from "@/components/workspace/form-dialog";
 import { EmptyState, EstadoBadge, PageHeader } from "@/components/workspace/ui-kit";
+import { describirHorario } from "@/lib/horario";
 import { dinero, ESTADO_REGISTRO } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { R } from "@/lib/roles";
@@ -52,7 +53,8 @@ export default async function CursosPage() {
                 <span className="rounded bg-white/20 px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase">{c.codigo}</span>
                 <h3 className="mt-2 line-clamp-1 text-lg font-bold">{c.nombre}</h3>
                 <p className="mt-1 line-clamp-2 h-8 text-xs text-white/80">{c.descripcion || "Sin descripción."}</p>
-                {!c.imagenPath && <p className="mt-2 text-[10px] text-white/70">Sin portada · agrégala al editar el curso</p>}
+                <p className="mt-2 text-[11px] text-white/85">{describirHorario(c) ?? "Sin horario · defínelo al editar el curso"}</p>
+                {!c.imagenPath && <p className="text-[10px] text-white/70">Sin portada · agrégala al editar el curso</p>}
               </CursoPortada>
               <div className="flex flex-1 flex-wrap items-center gap-2 p-4 text-xs">
                 <EstadoBadge valor={c.estado} mapa={ESTADO_REGISTRO} />

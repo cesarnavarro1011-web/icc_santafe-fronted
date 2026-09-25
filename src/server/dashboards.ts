@@ -1,5 +1,6 @@
 import "server-only";
 import { urlPortada } from "@/components/workspace/curso-portada";
+import { describirHorario } from "@/lib/horario";
 import { prisma } from "@/lib/prisma";
 import { ACADEMICO } from "@/lib/config";
 import type { UsuarioSesion } from "@/lib/server/session";
@@ -319,6 +320,7 @@ export async function cursosDisponibles(fielId: string) {
       descripcion: c.descripcion,
       portada: urlPortada(c),
       duracionDias: c.duracionDias,
+      horario: describirHorario(c),
       costo: Number(c.costo),
       estudiantes: c._count.matriculas,
       niveles: new Set(c.actividades.map((a) => a.nivel)).size,

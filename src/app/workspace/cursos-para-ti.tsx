@@ -1,4 +1,4 @@
-import { CalendarDays, FileText, Layers, PenLine, Sparkles, Users } from "lucide-react";
+import { CalendarDays, Clock, FileText, Layers, PenLine, Sparkles, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CursoPortada } from "@/components/workspace/curso-portada";
 import { Panel } from "@/components/workspace/ui-kit";
@@ -63,6 +63,11 @@ export async function CursosParaTi({ fielId }: { fielId: string }) {
                   <PenLine className="size-3.5 text-violet-500" /> {c.examenes} exámenes
                 </li>
               </ul>
+              {c.horario && (
+                <p className="flex items-center gap-1.5 rounded-lg bg-violet-50 px-2.5 py-1.5 text-xs font-medium text-violet-800">
+                  <Clock className="size-3.5 shrink-0" /> {c.horario}
+                </p>
+              )}
               {c.estudiantes > 0 && (
                 <p className="flex items-center gap-1.5 text-xs text-emerald-700">
                   <Users className="size-3.5" /> {c.estudiantes} {c.estudiantes === 1 ? "persona lo está cursando" : "personas lo están cursando"}

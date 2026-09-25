@@ -40,7 +40,7 @@ export default async function ClaseDetallePage({ params }: { params: Promise<{ i
   return (
     <>
       <Link href="/workspace/clases" className="text-muted-foreground flex items-center gap-1 text-sm hover:underline">
-        <ArrowLeft className="size-4" /> Mis clases
+        <ArrowLeft className="size-4" /> Cursos activos
       </Link>
       <PageHeader title={curso.nombre} description={`${curso.codigo} · ${curso.matriculas.length} estudiantes`} />
       <Panel>

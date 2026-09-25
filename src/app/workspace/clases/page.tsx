@@ -20,7 +20,7 @@ export default async function ClasesPage() {
 
   return (
     <>
-      <PageHeader title="Mis clases" description="Cursos que enseñas o supervisas" />
+      <PageHeader title="Cursos activos" description="Cursos que enseñas o supervisas" />
       {cursos.length === 0 ? (
         <EmptyState icon={Presentation}>No tienes cursos asignados. El pastor los asigna en “Maestros y supervisores”.</EmptyState>
       ) : (

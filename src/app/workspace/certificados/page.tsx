@@ -56,7 +56,7 @@ export default async function CertificadosPage({ searchParams }: { searchParams:
       <SearchBar placeholder="Buscar por estudiante o código..." filtros={[{ name: "estado", label: "Todos los estados", options: opciones(ESTADO_CERTIFICADO) }]} />
       <Panel>
         {certs.length === 0 ? (
-          <EmptyState icon={Award}>Sin certificados. Se inician desde “Mis clases” al aprobar a un estudiante.</EmptyState>
+          <EmptyState icon={Award}>Sin certificados. Se inician desde “Cursos activos” al aprobar a un estudiante.</EmptyState>
         ) : (
           <Table>
             <TableHeader>

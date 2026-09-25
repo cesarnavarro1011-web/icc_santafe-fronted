@@ -92,7 +92,7 @@ export const NAV: NavSection[] = [
       { href: "/workspace/cursos", label: "Catálogo de cursos", icon: "book", roles: R.ADMIN },
       { href: "/workspace/asignaciones", label: "Maestros y supervisores", icon: "user-cog", roles: R.ADMIN },
       { href: "/workspace/examenes", label: "Banco de preguntas", icon: "circle-help", roles: R.DOCENTE },
-      { href: "/workspace/clases", label: "Mis clases", icon: "presentation", roles: R.ACADEMICO },
+      { href: "/workspace/clases", label: "Cursos activos", icon: "presentation", roles: R.ACADEMICO },
       { href: "/workspace/asistencia-cursos", label: "Asistencia de cursos", icon: "clipboard-list", roles: R.ACADEMICO },
       { href: "/workspace/tareas", label: "Revisar tareas", icon: "inbox", roles: R.DOCENTE },
       { href: "/workspace/calificar-examenes", label: "Exámenes", icon: "check-check", roles: R.DOCENTE },

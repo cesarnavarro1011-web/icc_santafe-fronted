@@ -21,12 +21,17 @@ const cursoSchema = z.object({
   duracionDias: zEntero("Duración inválida").min(1).default(90),
   costo: zNumero("Costo inválido").min(0).default(0),
   estado: z.enum(EstadoRegistro).default("ACTIVO"),
+  horaInicio: z.preprocess((v) => (v === "" ? null : v), z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora inválida").nullable().optional()),
+  horaFin: z.preprocess((v) => (v === "" ? null : v), z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Hora inválida").nullable().optional()),
 });
 
 export async function guardarCurso(id: string | null, fd: FormData) {
   return runAction(async () => {
     await requireUser(R.ADMIN);
-    const { codigo, ...data } = cursoSchema.parse(formObj(fd));
+    const { codigo, horaInicio, horaFin, ...resto } = cursoSchema.parse(formObj(fd));
+    const diasClase = [...new Set(fd.getAll("dias").map(Number))].filter((d) => Number.isInteger(d) && d >= 0 && d <= 6).sort();
+    if (horaInicio && horaFin && horaFin <= horaInicio) throw new ErrorNegocio("La hora de fin debe ser después de la de inicio.");
+    const data = { ...resto, diasClase, horaInicio: horaInicio ?? null, horaFin: horaFin ?? null };
     const curso = id
       ? await prisma.curso.update({ where: { id }, data })
       : await prisma.curso.create({

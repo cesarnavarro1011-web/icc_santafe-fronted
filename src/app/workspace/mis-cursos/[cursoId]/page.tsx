@@ -5,6 +5,7 @@ import {
   Award,
   BookOpen,
   CalendarCheck,
+  CalendarClock,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -27,6 +28,7 @@ import { ESTADO_ENTREGA, ESTADO_MATRICULA, fecha, fechaHora, TIPO_ACTIVIDAD } fr
 import { prisma } from "@/lib/prisma";
 import { requirePage } from "@/lib/server/session";
 import { asistenciaEstudiante, diasRestantes } from "@/server/academico";
+import { describirHorario } from "@/lib/horario";
 import { cn } from "@/lib/utils";
 import { ContraerSidebar } from "@/components/workspace/contraer-sidebar";
 import { CursoPortada, urlPortada } from "@/components/workspace/curso-portada";
@@ -160,6 +162,11 @@ export default async function CursoEstudiantePage({
           <CursoPortada portada={urlPortada(curso)} className={cn("rounded-2xl p-6", curso.imagenPath && "flex min-h-52 flex-col justify-end")}>
             <h2 className="text-2xl font-bold">{curso.nombre}</h2>
             <p className="mt-1 text-white/85">{curso.descripcion || "Comienza tu camino de aprendizaje."}</p>
+            {describirHorario(curso) && (
+              <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-medium">
+                <CalendarClock className="size-3.5" /> {describirHorario(curso)}
+              </p>
+            )}
           </CursoPortada>
           <div className="grid grid-cols-3 gap-4">
             <Resumen icon={Layers} valor={niveles.length} label="Niveles" />

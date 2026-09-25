@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { Field } from "@/components/workspace/ui-kit";
+import { DIAS_LARGO, ORDEN_SEMANA } from "@/lib/horario";
 import { opciones, TIPO_ACTIVIDAD } from "@/lib/labels";
 
 export function CursoFields({ curso }: { curso?: Curso }) {
@@ -35,6 +36,21 @@ export function CursoFields({ curso }: { curso?: Curso }) {
           <option value="ACTIVO">Activo</option>
           <option value="INACTIVO">Inactivo</option>
         </NativeSelect>
+      </Field>
+      <Field label="Horario de clases" className="sm:col-span-2">
+        <div className="flex flex-wrap gap-2">
+          {ORDEN_SEMANA.map((d) => (
+            <label key={d} className="hover:bg-accent flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-sm capitalize">
+              <input type="checkbox" name="dias" value={d} defaultChecked={curso?.diasClase.includes(d)} className="size-4 accent-violet-600" />
+              {DIAS_LARGO[d]}
+            </label>
+          ))}
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-3">
+          <Input name="horaInicio" type="time" aria-label="Hora de inicio" defaultValue={curso?.horaInicio ?? ""} />
+          <Input name="horaFin" type="time" aria-label="Hora de fin" defaultValue={curso?.horaFin ?? ""} />
+        </div>
+        <p className="text-muted-foreground text-xs">Con estos días se generan las fechas de la tabla de asistencia. El estudiante lo ve antes de inscribirse.</p>
       </Field>
       <Field label={curso?.imagenPath ? "Cambiar imagen de portada" : "Imagen de portada (opcional)"} className="sm:col-span-2">
         {curso?.imagenPath && (
