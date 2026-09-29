@@ -80,6 +80,7 @@ export const NAV: NavSection[] = [
       { href: "/workspace/bautismos", label: "Bautismos", icon: "droplets", roles: R.PASTORAL },
       { href: "/workspace/ofrendas", label: "Diezmos y ofrendas", icon: "hand-coins", roles: R.FINANZAS },
       { href: "/workspace/inscripciones", label: "Inscripciones y pagos", icon: "credit-card", roles: R.ADMIN },
+      { href: "/workspace/promociones", label: "Códigos de promoción", icon: "ticket-percent", roles: R.ADMIN },
     ],
   },
   {

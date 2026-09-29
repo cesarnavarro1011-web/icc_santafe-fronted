@@ -77,6 +77,7 @@ export const METODO_PAGO: Record<MetodoPago, string> = {
   TRANSFERENCIA: "Transferencia",
   NEQUI: "Nequi",
   DAVIPLATA: "Daviplata",
+  MERCADOPAGO: "Mercado Pago",
   EXENTO: "Exento",
 };
 

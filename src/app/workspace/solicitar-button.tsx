@@ -1,15 +1,27 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { confirmar, toast } from "@/components/workspace/aviso";
-import { Clock, ShoppingCart } from "lucide-react";
+import { Clock, CreditCard, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { solicitarInscripcion } from "./actions";
 
 export function SolicitarButton({ cursoId, nombre, solicitado, gratis }: { cursoId: string; nombre: string; solicitado: boolean; gratis: boolean }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+
+  // Cursos de pago: se pagan en línea con Mercado Pago y la inscripción es automática
+  if (!gratis) {
+    return (
+      <Button className="w-full" asChild>
+        <Link href={`/workspace/pagar/${cursoId}`}>
+          {solicitado ? <CreditCard /> : <ShoppingCart />} {solicitado ? "Completar pago" : "Quiero este curso"}
+        </Link>
+      </Button>
+    );
+  }
 
   if (solicitado) {
     return (
@@ -24,7 +36,7 @@ export function SolicitarButton({ cursoId, nombre, solicitado, gratis }: { curso
       className="w-full"
       disabled={pending}
       onClick={async () => {
-        const ok = await confirmar(`El pastor recibirá tu solicitud${gratis ? "" : " para coordinar el pago"}. Cuando quede aprobada, el curso aparecerá en tu menú.`, {
+        const ok = await confirmar("El pastor recibirá tu solicitud. Cuando quede aprobada, el curso aparecerá en tu menú.", {
           titulo: `¿Inscribirte en "${nombre}"?`,
           textoConfirmar: "Sí, quiero inscribirme",
         });
@@ -37,7 +49,7 @@ export function SolicitarButton({ cursoId, nombre, solicitado, gratis }: { curso
         });
       }}
     >
-      <ShoppingCart /> {pending ? "Enviando..." : gratis ? "Quiero inscribirme" : "Quiero este curso"}
+      <ShoppingCart /> {pending ? "Enviando..." : "Quiero inscribirme"}
     </Button>
   );
 }

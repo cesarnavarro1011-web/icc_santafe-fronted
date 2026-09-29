@@ -100,6 +100,20 @@ página muestra el avance, los fallidos y permite reintentarlos. Los correos lle
 recibir más comunicados"; quien se da de baja sigue recibiendo los avisos de sus cursos, pagos y contraseña.
 En WhatsApp se usa la plantilla `WHATSAPP_PLANTILLA_INFO` (solo texto, sin imágenes).
 
+## Pagos en línea (Mercado Pago) y códigos de promoción
+
+- El estudiante pulsa **Quiero este curso** en un curso de pago → `/workspace/pagar/<curso>`: ve el precio,
+  puede aplicar un **código de promoción** y paga en Mercado Pago (Checkout Pro: tarjeta, PSE, Nequi, Efecty…).
+- Cuando Mercado Pago aprueba el pago, la inscripción pasa a **Completado** y el estudiante queda **matriculado
+  automáticamente** (correo de pago + correo de acceso). El pago se verifica siempre consultando la API de
+  Mercado Pago (webhook o página de retorno), nunca con datos del navegador, y se valida que el monto coincida.
+- Con un código del 100 % se matricula de inmediato sin pasar por Mercado Pago.
+- **Códigos de promoción** (menú General, pastor y superadmin): porcentaje o valor fijo, para un curso o todos,
+  límite de usos y fechas. El uso se cuenta cuando el pago queda aprobado.
+- Configuración en `.env`: `MERCADOPAGO_ACCESS_TOKEN` y `MERCADOPAGO_WEBHOOK_SECRET` (ver `.env.example`).
+  Sin token, en desarrollo el pago se simula con un botón; en producción queda deshabilitado.
+- Los cursos gratuitos siguen con la solicitud que aprueba el pastor.
+
 ## Página web pública
 
 La portada (`/`) y las páginas de ministerios leen su contenido de la base de datos. Se administra en

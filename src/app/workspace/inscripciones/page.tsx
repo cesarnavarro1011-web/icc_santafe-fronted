@@ -71,7 +71,7 @@ export default async function InscripcionesPage({ searchParams }: { searchParams
   };
 
   const [inscripciones, conteo, fieles, cursos] = await Promise.all([
-    prisma.inscripcion.findMany({ where, orderBy: { fecha: "desc" }, take: 200, include: { fiel: true, curso: true } }),
+    prisma.inscripcion.findMany({ where, orderBy: { fecha: "desc" }, take: 200, include: { fiel: true, curso: true, codigoPromo: { select: { codigo: true } } } }),
     prisma.inscripcion.groupBy({ by: ["estadoPago"], _count: true }),
     opcionesFieles(),
     opcionesCursos(),
@@ -147,7 +147,15 @@ export default async function InscripcionesPage({ searchParams }: { searchParams
                   </TableCell>
                   <TableCell className="text-xs">{fecha(i.fecha)}</TableCell>
                   <TableCell>{dinero(i.costoTotal)}</TableCell>
-                  <TableCell className="font-semibold">{dinero(i.montoPagado)}</TableCell>
+                  <TableCell className="font-semibold">
+                    {dinero(i.montoPagado)}
+                    {Number(i.descuento) > 0 && (
+                      <div className="text-xs font-normal text-emerald-700">
+                        -{dinero(i.descuento)} {i.codigoPromo && <span className="font-mono">({i.codigoPromo.codigo})</span>}
+                      </div>
+                    )}
+                    {i.mpEstado && i.estadoPago !== "COMPLETADO" && <div className="text-muted-foreground text-xs font-normal">MP: {i.mpEstado}</div>}
+                  </TableCell>
                   <TableCell>
                     <EstadoBadge valor={i.estadoPago} mapa={ESTADO_PAGO} />
                   </TableCell>
