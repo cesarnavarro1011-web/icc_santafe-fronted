@@ -18,6 +18,7 @@ const fielSchema = z.object({
   fechaNacimiento: zFechaOpc,
   estadoCivil: z.preprocess((v) => (v === "" ? null : v), z.enum(EstadoCivil).nullable()),
   bautizado: zBool,
+  recibeInformativos: zBool,
   celular: zTextoOpc,
   correo: zCorreoOpc,
   direccion: zTextoOpc,

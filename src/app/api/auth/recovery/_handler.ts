@@ -18,5 +18,6 @@ export async function leerBody(req: Request) {
     identifier: String(body.identifier ?? ""),
     code: String(body.code ?? ""),
     password: String(body.password ?? ""),
+    canal: body.canal === "whatsapp" ? ("whatsapp" as const) : ("correo" as const),
   };
 }

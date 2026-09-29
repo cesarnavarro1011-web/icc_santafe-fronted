@@ -12,6 +12,7 @@ import { requireUser } from "@/lib/server/session";
 import { carpetaFiel, guardarArchivo, leerUpload } from "@/lib/server/storage";
 import { exigirPuedeInscribirse, inscribirEnCurso } from "@/server/academico";
 import { nuevoCodigo } from "@/server/codigos";
+import { notificarPagoCurso } from "@/server/notificaciones";
 
 const pagoSchema = z.object({
   costoTotal: zNumero("Costo inválido").min(0),
@@ -52,8 +53,9 @@ export async function crearInscripcion(fd: FormData) {
       data: { ...d, codigo: nuevoCodigo("INS"), registradoPorId: user.fielId },
     });
     await guardarComprobante(fd, insc.id);
+    await notificarPagoCurso(insc.id, true); // correo con el estado del pago
     let matriculado = false;
-    if (habilitaCurso(d.estadoPago)) matriculado = !(await inscribirEnCurso(d.fielId, d.cursoId)).yaInscrito;
+    if (habilitaCurso(d.estadoPago)) matriculado = !(await inscribirEnCurso(d.fielId, d.cursoId)).yaInscrito; // correo de acceso
     revalidatePath("/workspace/inscripciones");
     return { matriculado };
   });
@@ -63,8 +65,13 @@ export async function actualizarPago(id: string, fd: FormData) {
   return runAction(async () => {
     await requireUser(R.ADMIN);
     const d = pagoSchema.parse(formObj(fd));
+    const antes = await prisma.inscripcion.findUniqueOrThrow({ where: { id } });
     const insc = await prisma.inscripcion.update({ where: { id }, data: d });
     await guardarComprobante(fd, insc.id);
+    // Solo se avisa al fiel si cambió lo que pagó o el estado del pago
+    if (Number(antes.montoPagado) !== Number(insc.montoPagado) || antes.estadoPago !== insc.estadoPago) {
+      await notificarPagoCurso(insc.id, false);
+    }
     if (habilitaCurso(d.estadoPago)) await inscribirEnCurso(insc.fielId, insc.cursoId);
     revalidatePath("/workspace/inscripciones");
     return null;

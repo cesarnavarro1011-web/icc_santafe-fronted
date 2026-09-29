@@ -2,12 +2,11 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ACADEMICO } from "@/lib/config";
-import { fecha } from "@/lib/labels";
 import { R, tieneRol } from "@/lib/roles";
-import { enviarCorreo, esc, plantillaCorreo } from "@/lib/server/mail";
 import { ErrorNegocio } from "@/lib/server/errors";
 import type { UsuarioSesion } from "@/lib/server/session";
 import { nuevoCodigo } from "./codigos";
+import { notificarAccesoCurso } from "./notificaciones";
 
 // ============================================================
 //  Alcance: qué cursos puede ver/gestionar cada usuario
@@ -82,9 +81,9 @@ export async function inscribirEnCurso(fielId: string, cursoId: string) {
   const existente = await prisma.matricula.findUnique({ where: { fielId_cursoId: { fielId, cursoId } } });
   if (existente) return { matricula: existente, yaInscrito: true };
 
-  const [curso, fiel, maestro, supervisor] = await Promise.all([
+  const [curso, , maestro, supervisor] = await Promise.all([
     prisma.curso.findUniqueOrThrow({ where: { id: cursoId } }),
-    prisma.fiel.findUniqueOrThrow({ where: { id: fielId } }),
+    prisma.fiel.findUniqueOrThrow({ where: { id: fielId } }), // valida que el fiel exista
     prisma.asignacionMaestro.findFirst({ where: { cursoId }, orderBy: [{ rol: "asc" }, { nivel: "asc" }] }),
     prisma.asignacionSupervisor.findFirst({ where: { cursoId, estado: "ACTIVO" } }),
   ]);
@@ -105,20 +104,7 @@ export async function inscribirEnCurso(fielId: string, cursoId: string) {
     },
   });
 
-  if (fiel.correo) {
-    await enviarCorreo({
-      to: fiel.correo,
-      tipo: "inscripcion",
-      subject: `¡Inscripción confirmada! Curso: ${curso.nombre}`,
-      html: plantillaCorreo(
-        "¡Bienvenido al curso!",
-        `<p>Hola <strong>${esc(fiel.nombre)}</strong>,</p>
-         <p>Tu inscripción al curso <strong>${esc(curso.nombre)}</strong> ha sido confirmada.</p>
-         <p><strong>Inicio:</strong> ${fecha(inicio)}<br/><strong>Vence:</strong> ${fecha(vence)} (${curso.duracionDias} días)</p>
-         <p>Encuentras el contenido en <strong>"Mis cursos"</strong> del espacio de estudio.</p>`,
-      ),
-    });
-  }
+  await notificarAccesoCurso(matricula.id);
   return { matricula, yaInscrito: false };
 }
 

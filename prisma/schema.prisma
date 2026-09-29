@@ -136,21 +136,23 @@ enum PropositoOtp {
 
 /// Hoja "Fieles"
 model Fiel {
-  id              String         @id @default(cuid())
-  codigo          String         @unique // "F-1004355591" (ID del sistema anterior)
-  nombre          String
-  apellido        String
-  fechaNacimiento DateTime?      @db.Date
-  estadoCivil     EstadoCivil?
-  bautizado       Boolean        @default(false)
-  celular         String?
-  direccion       String?
-  correo          String?
-  estado          EstadoRegistro @default(ACTIVO)
-  grupoId         String? // grupo del líder al que pertenece
-  grupo           Grupo?         @relation("MiembrosGrupo", fields: [grupoId], references: [id], onDelete: SetNull)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id                 String         @id @default(cuid())
+  codigo             String         @unique // "F-1004355591" (ID del sistema anterior)
+  nombre             String
+  apellido           String
+  fechaNacimiento    DateTime?      @db.Date
+  estadoCivil        EstadoCivil?
+  bautizado          Boolean        @default(false)
+  celular            String?
+  direccion          String?
+  correo             String?
+  estado             EstadoRegistro @default(ACTIVO)
+  /// false = se dio de baja de los comunicados masivos (los avisos de sus cursos y pagos sí le llegan)
+  recibeInformativos Boolean        @default(true)
+  grupoId            String? // grupo del líder al que pertenece
+  grupo              Grupo?         @relation("MiembrosGrupo", fields: [grupoId], references: [id], onDelete: SetNull)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   usuario                Usuario?
   gruposQueLidera        Grupo[]                    @relation("LiderGrupo")
@@ -589,6 +591,65 @@ model Certificado {
 }
 
 /// Hoja "Log_Envios" (correos que no se pudieron enviar)
+enum EstadoComunicado {
+  BORRADOR
+  ENVIANDO
+  ENVIADO
+}
+
+enum CanalEnvio {
+  CORREO
+  WHATSAPP
+}
+
+enum EstadoEnvio {
+  PENDIENTE
+  ENVIADO
+  FALLIDO
+  OMITIDO // sin correo/celular o dado de baja
+}
+
+/// Aviso informativo masivo (correo y/o WhatsApp) — módulo "Comunicados"
+model Comunicado {
+  id            String           @id @default(cuid())
+  asunto        String
+  cuerpo        String // texto; admite **negrita**, enlaces y {{nombre}}
+  imagenes      String[]         @default([]) // rutas en STORAGE_DIR/comunicados/<id>/
+  enlaceUrl     String? // botón opcional
+  enlaceTexto   String?
+  porCorreo     Boolean          @default(true)
+  porWhatsapp   Boolean          @default(false)
+  /// { tipo: "todos" | "rol" | "grupo" | "curso" | "cargo", valor?: string }
+  destinatarios Json             @default("{\"tipo\":\"todos\"}")
+  estado        EstadoComunicado @default(BORRADOR)
+  total         Int              @default(0)
+  enviados      Int              @default(0)
+  fallidos      Int              @default(0)
+  omitidos      Int              @default(0)
+  creadoPorId   String?
+  enviadoAt     DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  envios EnvioComunicado[]
+}
+
+/// Un envío de un comunicado a una persona por un canal (para progreso y reintentos)
+model EnvioComunicado {
+  id           String      @id @default(cuid())
+  comunicadoId String
+  comunicado   Comunicado  @relation(fields: [comunicadoId], references: [id], onDelete: Cascade)
+  fielId       String
+  canal        CanalEnvio
+  destino      String?
+  estado       EstadoEnvio @default(PENDIENTE)
+  error        String?
+  enviadoAt    DateTime?
+
+  @@unique([comunicadoId, fielId, canal])
+  @@index([comunicadoId, estado])
+}
+
 model LogEnvio {
   id        String   @id @default(cuid())
   destino   String?

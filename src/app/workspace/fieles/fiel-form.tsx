@@ -55,6 +55,12 @@ export function FielFields({
           <option value="true">Sí</option>
         </NativeSelect>
       </Field>
+      <Field label="Recibe comunicados">
+        <NativeSelect name="recibeInformativos" defaultValue={fiel && !fiel.recibeInformativos ? "false" : "true"}>
+          <option value="true">Sí (correo y WhatsApp)</option>
+          <option value="false">No, se dio de baja</option>
+        </NativeSelect>
+      </Field>
       <Field label="Celular">
         <Input name="celular" type="tel" defaultValue={fiel?.celular ?? ""} />
       </Field>

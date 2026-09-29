@@ -54,6 +54,8 @@ export const R = {
   VERIFICA_OFRENDAS: ["SUPERADMIN", "PASTOR"],
   /** Página web pública: portada, eventos, prédicas, ministerios, anuncios */
   CONTENIDO: ["SUPERADMIN", "PASTOR", "EDITOR"],
+  /** Comunicados masivos por correo y WhatsApp */
+  COMUNICADOS: ["SUPERADMIN", "PASTOR", "EDITOR"],
   /** Estudian: su Inicio es el tablero del estudiante */
   APRENDIZ: ["ESTUDIANTE"],
   TODOS: ROLES,
@@ -101,6 +103,10 @@ export const NAV: NavSection[] = [
       { href: "/workspace/control-calidad", label: "Control de calidad", icon: "shield-check", roles: R.SUPERVISION },
       { href: "/workspace/certificados", label: "Certificados", icon: "award", roles: R.ACADEMICO },
     ],
+  },
+  {
+    title: "Comunicación",
+    items: [{ href: "/workspace/comunicados", label: "Comunicados", icon: "send", roles: R.COMUNICADOS }],
   },
   {
     title: "Página web",

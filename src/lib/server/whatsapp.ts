@@ -1,15 +1,21 @@
 import "server-only";
+import { prisma } from "@/lib/prisma";
 
 // ============================================================
-//  Envío de códigos por WhatsApp (API oficial de Meta: WhatsApp Cloud API).
+//  Envío por WhatsApp (API oficial de Meta: WhatsApp Cloud API).
+//  Los mensajes que inicia la iglesia DEBEN usar plantillas aprobadas por Meta.
 //  Variables en .env:
-//    WHATSAPP_TOKEN       token de acceso de la app de Meta
-//    WHATSAPP_PHONE_ID    ID del número de WhatsApp Business
-//    WHATSAPP_PLANTILLA   plantilla de autenticación aprobada (categoría "Authentication")
-//    WHATSAPP_IDIOMA      idioma de la plantilla (por defecto "es")
-//    WHATSAPP_PAIS        indicativo para celulares sin él (por defecto 57, Colombia)
-//  Sin WHATSAPP_TOKEN el código se imprime en la consola del servidor (modo local).
+//    WHATSAPP_TOKEN             token de acceso permanente de la app de Meta
+//    WHATSAPP_PHONE_ID          ID del número de WhatsApp Business
+//    WHATSAPP_PLANTILLA         plantilla de categoría "Authentication" (códigos)
+//    WHATSAPP_PLANTILLA_INFO    plantilla de categoría "Utility" o "Marketing" (informativos)
+//                               Cuerpo con 3 variables: {{1}} nombre, {{2}} título, {{3}} mensaje
+//    WHATSAPP_IDIOMA            idioma de las plantillas (por defecto "es")
+//    WHATSAPP_PAIS              indicativo para celulares sin él (por defecto 57, Colombia)
+//  Sin WHATSAPP_TOKEN los mensajes se imprimen en la consola del servidor (modo local).
 // ============================================================
+
+const API = "https://graph.facebook.com/v21.0";
 
 /** "301 483 9591" → "573014839591" */
 export function normalizarCelular(celular: string) {
@@ -25,45 +31,89 @@ export function enmascararCelular(celular: string) {
   return `***${n.slice(-4)}`;
 }
 
-/** Envía el código con la plantilla de autenticación. Devuelve false si falló. */
-export async function enviarCodigoWhatsApp(celular: string, codigo: string) {
-  const numero = normalizarCelular(celular);
-  if (!numero) return false;
+export const whatsappConfigurado = () => !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_ID);
 
-  const token = process.env.WHATSAPP_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_ID;
-  if (!token || !phoneId) {
-    console.info(`\n[whatsapp] Para: +${numero}\nTu código de verificación es ${codigo}. Vence en 5 minutos.\n`);
-    return true;
+/**
+ * Meta no acepta saltos de línea, tabulaciones ni más de 4 espacios seguidos en las
+ * variables de una plantilla, y las limita a ~1024 caracteres.
+ */
+export function limpiarVariable(texto: string, max = 1000) {
+  const t = texto.replace(/\r?\n+/g, " · ").replace(/\t/g, " ").replace(/ {4,}/g, "   ").trim();
+  return t.length > max ? `${t.slice(0, max - 1)}…` : t;
+}
+
+type Resultado = { ok: true } | { ok: false; error: string };
+
+/** Envía una plantilla aprobada. `componentes` sigue el formato de la API de Meta. */
+export async function enviarPlantillaWhatsApp(celular: string, plantilla: string, componentes: unknown[], tipo: string): Promise<Resultado> {
+  const numero = normalizarCelular(celular);
+  if (!numero) return { ok: false, error: "Número de celular inválido" };
+
+  if (!whatsappConfigurado()) {
+    console.info(`\n[whatsapp:${tipo}] Para: +${numero} · plantilla "${plantilla}"\n${JSON.stringify(componentes)}\n`);
+    return { ok: true };
   }
 
   try {
-    const res = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
+    const res = await fetch(`${API}/${process.env.WHATSAPP_PHONE_ID}/messages`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         messaging_product: "whatsapp",
         to: numero,
         type: "template",
-        template: {
-          name: process.env.WHATSAPP_PLANTILLA || "codigo_verificacion",
-          language: { code: process.env.WHATSAPP_IDIOMA || "es" },
-          components: [
-            { type: "body", parameters: [{ type: "text", text: codigo }] },
-            // Las plantillas de autenticación llevan un botón "Copiar código"
-            { type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: codigo }] },
-          ],
-        },
+        template: { name: plantilla, language: { code: process.env.WHATSAPP_IDIOMA || "es" }, components: componentes },
       }),
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) {
-      console.error("[whatsapp] error", res.status, await res.text());
-      return false;
+      const cuerpo = await res.text();
+      let error = `HTTP ${res.status}`;
+      try {
+        error = (JSON.parse(cuerpo) as { error?: { message?: string } }).error?.message ?? error;
+      } catch {}
+      console.error("[whatsapp] error", res.status, cuerpo);
+      await prisma.logEnvio.create({ data: { destino: numero, asunto: plantilla, tipo: `whatsapp:${tipo}`, error } }).catch(() => {});
+      return { ok: false, error };
     }
-    return true;
+    return { ok: true };
   } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
     console.error("[whatsapp] error", e);
-    return false;
+    await prisma.logEnvio.create({ data: { destino: numero, asunto: plantilla, tipo: `whatsapp:${tipo}`, error } }).catch(() => {});
+    return { ok: false, error };
   }
+}
+
+/** Código de verificación (plantilla de autenticación con botón "Copiar código"). */
+export async function enviarCodigoWhatsApp(celular: string, codigo: string, tipo = "codigo") {
+  const r = await enviarPlantillaWhatsApp(
+    celular,
+    process.env.WHATSAPP_PLANTILLA || "codigo_verificacion",
+    [
+      { type: "body", parameters: [{ type: "text", text: codigo }] },
+      { type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: codigo }] },
+    ],
+    tipo,
+  );
+  return r.ok;
+}
+
+/** Aviso informativo: plantilla con {{1}} nombre, {{2}} título y {{3}} mensaje. */
+export function enviarInformativoWhatsApp(celular: string, datos: { nombre: string; titulo: string; mensaje: string }) {
+  return enviarPlantillaWhatsApp(
+    celular,
+    process.env.WHATSAPP_PLANTILLA_INFO || "aviso_informativo",
+    [
+      {
+        type: "body",
+        parameters: [
+          { type: "text", text: limpiarVariable(datos.nombre, 60) || "hermano(a)" },
+          { type: "text", text: limpiarVariable(datos.titulo, 120) },
+          { type: "text", text: limpiarVariable(datos.mensaje, 900) },
+        ],
+      },
+    ],
+    "informativo",
+  );
 }

@@ -56,6 +56,7 @@ export function RecoveryForm({
   const [loading, setLoading] = useState(false);
   const [identifier, setIdentifier] = useState("");
   const [code, setCode] = useState("");
+  const [canal, setCanal] = useState<"correo" | "whatsapp">("correo");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Formulario: Paso 1
@@ -81,11 +82,12 @@ export function RecoveryForm({
     try {
       await axios.post("/api/auth/recovery/request", {
         identifier: data.identifier,
+        canal,
       });
       setIdentifier(data.identifier);
       setStep("verify");
       toast.success("Solicitud recibida", {
-        description: "Si el usuario tiene correo registrado, le llegará un código.",
+        description: canal === "whatsapp" ? "Si el usuario tiene celular registrado, le llegará un código por WhatsApp." : "Si el usuario tiene correo registrado, le llegará un código.",
       });
     } catch (e) {
       setErrorMessage(mensajeError(e, "Error al solicitar recuperación"));
@@ -141,7 +143,7 @@ export function RecoveryForm({
   const resendCode = async () => {
     setLoading(true);
     try {
-      await axios.post("/api/auth/recovery/resend", { identifier });
+      await axios.post("/api/auth/recovery/resend", { identifier, canal });
       toast.success("Código reenviado");
     } catch {
       toast.error("No se pudo reenviar");
@@ -161,7 +163,10 @@ export function RecoveryForm({
         </h1>
         <p className="text-sm text-muted-foreground">
           {step === "request" && "Ingresa tu correo o número de identidad."}
-          {step === "verify" && "Si el usuario tiene correo registrado, le enviamos un código de 6 dígitos. Revisa tu bandeja y el spam."}
+          {step === "verify" &&
+            (canal === "whatsapp"
+              ? "Si el usuario tiene celular registrado, le enviamos un código de 6 dígitos por WhatsApp."
+              : "Si el usuario tiene correo registrado, le enviamos un código de 6 dígitos. Revisa tu bandeja y el spam.")}
           {step === "reset" && "Ingresa y confirma tu nueva contraseña."}
           {step === "done" && "Ya puedes iniciar sesión."}
         </p>
@@ -192,6 +197,26 @@ export function RecoveryForm({
               </p>
             )}
           </div>
+          <fieldset className="grid gap-2">
+            <legend className="mb-2 text-sm font-medium">¿Dónde quieres recibir el código?</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                ["correo", "Correo"],
+                ["whatsapp", "WhatsApp"],
+              ] as const).map(([valor, texto]) => (
+                <label
+                  key={valor}
+                  className={cn(
+                    "flex cursor-pointer items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm transition",
+                    canal === valor ? "border-primary bg-primary/5 font-semibold" : "hover:bg-muted",
+                  )}
+                >
+                  <input type="radio" name="canal" value={valor} checked={canal === valor} onChange={() => setCanal(valor)} className="sr-only" />
+                  {texto}
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <Button type="submit" disabled={loading}>
             {loading ? "Enviando..." : "Enviar código"}
           </Button>

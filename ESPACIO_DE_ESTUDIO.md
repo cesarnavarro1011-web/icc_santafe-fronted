@@ -82,6 +82,24 @@ Todos los roles tienen “Mis cursos” y “Perfil”. Los permisos por ruta es
 - `src/lib/config.ts`: nota mínima (6), nota máxima (10) y asistencia mínima (75 %)
 - `scripts/`: importación del Excel y creación del superadmin
 
+## Correos y WhatsApp
+
+Se configuran en `.env` (instrucciones paso a paso en `.env.example`). Sin configurar, todo se imprime en
+la consola del servidor, así que se puede probar 100 % local.
+
+| Mensaje | Correo | WhatsApp | Dónde se dispara |
+| --- | --- | --- | --- |
+| Pago de curso registrado o actualizado | ✓ | | Inscripciones y pagos (al crear, o si cambia el monto o el estado) |
+| Acceso a un curso nuevo (con botón "Ir al curso") | ✓ | | Al quedar matriculado (pago completado o exento) |
+| Recuperar contraseña (código de 6 dígitos) | ✓ | ✓ | Login → Recuperar cuenta; el usuario elige el canal |
+| Comunicados masivos (asunto, mensaje, imágenes, botón) | ✓ | ✓ | Menú **Comunicación → Comunicados** |
+
+**Comunicados:** se guardan como borrador, se prueban con "Enviarme una prueba" y se envían a todos los
+fieles activos o filtrados por rol, grupo, curso o cargo. El envío corre en segundo plano (3 a la vez) y la
+página muestra el avance, los fallidos y permite reintentarlos. Los correos llevan el enlace "No quiero
+recibir más comunicados"; quien se da de baja sigue recibiendo los avisos de sus cursos, pagos y contraseña.
+En WhatsApp se usa la plantilla `WHATSAPP_PLANTILLA_INFO` (solo texto, sin imágenes).
+
 ## Página web pública
 
 La portada (`/`) y las páginas de ministerios leen su contenido de la base de datos. Se administra en

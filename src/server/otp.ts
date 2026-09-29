@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { ErrorNegocio } from "@/lib/server/errors";
 import { enviarCorreo, plantillaCorreo } from "@/lib/server/mail";
+import { enviarCodigoWhatsApp } from "@/lib/server/whatsapp";
 import { codigoOtp, hashPassword, validarPassword } from "@/lib/server/password";
 import { minutosBloqueo, registrarIntento, REGLAS } from "@/lib/server/rate-limit";
 import { buscarUsuarioPor } from "@/lib/server/identificador";
@@ -26,11 +27,14 @@ async function buscarUsuario(identificador: string) {
   return usuario;
 }
 
+export type CanalOtp = "correo" | "whatsapp";
+
 /**
- * Envía un código si el usuario existe y tiene correo. La respuesta es la misma en
- * todos los casos para no revelar qué usuarios existen (enumeración de cuentas).
+ * Envía un código por el canal elegido si el usuario existe y tiene ese dato
+ * (correo o celular). La respuesta es la misma en todos los casos para no revelar
+ * qué usuarios existen (enumeración de cuentas).
  */
-export async function solicitarOtp(identificador: string, ip: string) {
+export async function solicitarOtp(identificador: string, ip: string, canal: CanalOtp = "correo") {
   const id = identificador.trim().toLowerCase();
   if (!id) throw new ErrorNegocio("Ingresa tu usuario, documento o correo.");
   const claveU = `otp:u:${id}`;
@@ -39,10 +43,15 @@ export async function solicitarOtp(identificador: string, ip: string) {
   registrarIntento(claveU, REGLAS.otpUsuario);
   limitarIp(ip);
 
-  const generico = { mensaje: "Si el usuario existe y tiene correo registrado, le enviamos un código de 6 dígitos." };
+  const generico = {
+    mensaje:
+      canal === "whatsapp"
+        ? "Si el usuario existe y tiene celular registrado, le enviamos un código de 6 dígitos por WhatsApp."
+        : "Si el usuario existe y tiene correo registrado, le enviamos un código de 6 dígitos.",
+  };
   const usuario = await prisma.usuario.findFirst({ where: buscarUsuarioPor(identificador), include: { fiel: true } });
-  const correo = usuario?.activo ? usuario.fiel.correo?.trim() : null;
-  if (!usuario || !correo) return generico;
+  const destino = usuario?.activo ? (canal === "whatsapp" ? usuario.fiel.celular : usuario.fiel.correo)?.trim() : null;
+  if (!usuario || !destino) return generico;
 
   const code = codigoOtp();
   await prisma.$transaction([
@@ -60,8 +69,13 @@ export async function solicitarOtp(identificador: string, ip: string) {
     }),
   ]);
 
+  if (canal === "whatsapp") {
+    await enviarCodigoWhatsApp(destino, code, "recuperar-password");
+    return generico;
+  }
+
   await enviarCorreo({
-    to: correo,
+    to: destino,
     tipo: "otp",
     subject: "Código de verificación — Espacio de estudio",
     html: plantillaCorreo(

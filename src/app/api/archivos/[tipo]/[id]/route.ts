@@ -13,6 +13,7 @@ import { cursosEnAlcance } from "@/server/academico";
 //   /api/archivos/comprobante/<id>  comprobante de pago: el fiel o admin
 //   /api/archivos/firma/<usuarioId> firma digital: el dueño o admin
 //   /api/archivos/portada/<cursoId> imagen del curso: cualquier usuario con sesión
+//   /api/archivos/comunicado/<comunicadoId>~<n>  imagen n de un comunicado: quien gestiona comunicados
 
 async function staffDelCurso(user: UsuarioSesion, cursoId: string) {
   if (!tieneRol(user.rol, R.ACADEMICO)) return false;
@@ -22,6 +23,13 @@ async function staffDelCurso(user: UsuarioSesion, cursoId: string) {
 
 async function resolver(tipo: string, id: string, user: UsuarioSesion) {
   switch (tipo) {
+    case "comunicado": {
+      if (!tieneRol(user.rol, R.COMUNICADOS)) return "denegado";
+      const [comunicadoId, n] = id.split("~");
+      const c = await prisma.comunicado.findUnique({ where: { id: comunicadoId } });
+      const ruta = c?.imagenes[Number(n)];
+      return ruta ? { ruta, nombre: path.basename(ruta) } : null;
+    }
     case "entrega": {
       const e = await prisma.entrega.findUnique({ where: { id }, include: { actividad: true } });
       if (!e?.archivoPath) return null;
