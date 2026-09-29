@@ -10,6 +10,7 @@ export const ROLES = [
   "LIDER",
   "MAESTRO",
   "ESTUDIANTE",
+  "EDITOR",
 ] as const;
 
 export type RolUsuario = (typeof ROLES)[number];
@@ -21,6 +22,7 @@ export const ROL_LABEL: Record<RolUsuario, string> = {
   LIDER: "Líder",
   MAESTRO: "Maestro",
   ESTUDIANTE: "Estudiante",
+  EDITOR: "Gestor de contenido",
 };
 
 /**
@@ -50,6 +52,8 @@ export const R = {
   FINANZAS: ["SUPERADMIN", "PASTOR", "LIDER"],
   REGISTRA_OFRENDAS: ["SUPERADMIN", "LIDER"],
   VERIFICA_OFRENDAS: ["SUPERADMIN", "PASTOR"],
+  /** Página web pública: portada, eventos, prédicas, ministerios, anuncios */
+  CONTENIDO: ["SUPERADMIN", "PASTOR", "EDITOR"],
   /** Estudian: su Inicio es el tablero del estudiante */
   APRENDIZ: ["ESTUDIANTE"],
   TODOS: ROLES,
@@ -96,6 +100,19 @@ export const NAV: NavSection[] = [
       { href: "/workspace/calificar-examenes", label: "Exámenes", icon: "check-check", roles: R.DOCENTE },
       { href: "/workspace/control-calidad", label: "Control de calidad", icon: "shield-check", roles: R.SUPERVISION },
       { href: "/workspace/certificados", label: "Certificados", icon: "award", roles: R.ACADEMICO },
+    ],
+  },
+  {
+    title: "Página web",
+    items: [
+      { href: "/workspace/contenido", label: "Resumen del sitio", icon: "globe", roles: R.CONTENIDO },
+      { href: "/workspace/contenido/iglesia", label: "Datos de la iglesia", icon: "church", roles: R.CONTENIDO },
+      { href: "/workspace/contenido/portada", label: "Portada", icon: "image", roles: R.CONTENIDO },
+      { href: "/workspace/contenido/anuncios", label: "Anuncios", icon: "megaphone", roles: R.CONTENIDO },
+      { href: "/workspace/contenido/eventos", label: "Eventos", icon: "calendar-days", roles: R.CONTENIDO },
+      { href: "/workspace/contenido/predicas", label: "Prédicas", icon: "video", roles: R.CONTENIDO },
+      { href: "/workspace/contenido/ministerios", label: "Ministerios", icon: "heart-handshake", roles: R.CONTENIDO },
+      { href: "/workspace/contenido/peticiones", label: "Peticiones de oración", icon: "hand-heart", roles: R.CONTENIDO },
     ],
   },
   {

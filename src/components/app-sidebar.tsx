@@ -9,6 +9,14 @@ import {
   Book,
   BookOpen,
   CalendarCheck,
+  CalendarDays,
+  Church,
+  Globe,
+  HandHeart,
+  HeartHandshake,
+  Image as ImageIcon,
+  Megaphone,
+  Video,
   CalendarRange,
   CheckCheck,
   CircleHelp,
@@ -64,6 +72,14 @@ const ICONOS: Record<string, LucideIcon> = {
   "key-round": KeyRound,
   "users-round": UsersRound,
   "calendar-range": CalendarRange,
+  globe: Globe,
+  church: Church,
+  image: ImageIcon,
+  megaphone: Megaphone,
+  "calendar-days": CalendarDays,
+  video: Video,
+  "heart-handshake": HeartHandshake,
+  "hand-heart": HandHeart,
 }
 
 type Props = React.ComponentProps<typeof Sidebar> & {
@@ -77,7 +93,12 @@ type Props = React.ComponentProps<typeof Sidebar> & {
 
 export function AppSidebar({ nav, cursos, cursosPrimero, user, ...props }: Props) {
   const pathname = usePathname()
-  const activo = (href: string) => (href === "/workspace" ? pathname === href : pathname.startsWith(href))
+  // Se resalta solo el ítem más específico (p. ej. "Datos de la iglesia" y no también "Resumen del sitio")
+  const masEspecifico = nav
+    .flatMap((s) => s.items.map((i) => i.href))
+    .filter((h) => pathname === h || (h !== "/workspace" && pathname.startsWith(h + "/")))
+    .sort((a, b) => b.length - a.length)[0]
+  const activo = (href: string) => href === masEspecifico
 
   // Perfil y cambio de contraseña se ven como otra página, sin la barra principal
   if (esRutaSinMenu(pathname)) return null

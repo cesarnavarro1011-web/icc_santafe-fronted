@@ -13,7 +13,8 @@
     "db:studio": "prisma studio",
     "db:importar": "tsx --env-file=.env scripts/importar-excel.ts",
     "db:superadmin": "tsx --env-file=.env scripts/crear-superadmin.ts",
-    "db:ejemplo": "tsx --env-file=.env --conditions=react-server scripts/datos-ejemplo.ts"
+    "db:ejemplo": "tsx --env-file=.env --conditions=react-server scripts/datos-ejemplo.ts",
+    "db:contenido": "tsx --env-file=.env scripts/contenido-inicial.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

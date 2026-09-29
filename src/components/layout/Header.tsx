@@ -89,6 +89,7 @@ export default function Header() {
     { href: '/#eventos', label: 'Eventos', spyId: 'eventos' },
     { href: '/#predicaciones', label: 'Predicaciones', spyId: 'predicaciones' },
     { href: '/#ministerios', label: 'Ministerios', spyId: 'ministerios' },
+    { href: '/#oracion', label: 'Oración', spyId: 'oracion' },
     { href: '/nosotros', label: 'Quiénes Somos', spyId: undefined },
     { href: '/contactanos', label: 'Contáctanos', spyId: undefined },
   ];

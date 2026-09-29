@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Eye, Target, Heart, Users } from "lucide-react";
+import { Eye, Target, Heart } from "lucide-react";
 import { motion, useScroll, useTransform, useReducedMotion } from "framer-motion";
 import { useRef } from "react";
 import { useInView } from "framer-motion";
@@ -14,46 +14,38 @@ interface AboutItem {
   accent: string;
 }
 
-const aboutData = {
-  vision: {
-    text: "Ser una iglesia que transforma vidas y comunidades a través del amor de Cristo, siendo un faro de esperanza y un centro de crecimiento espiritual para todas las personas.",
-    image: "/images/vision.jpg"
-  },
-  mission: {
-    text: "Nuestra misión es glorificar a Dios mediante la adoración, discipular a los creyentes en la fe cristiana, evangelizar a los perdidos con amor y compasión, y servir a nuestra comunidad con el corazón de Cristo.",
-    image: "/images/mision.jpg"
-  },
-  values: {
-    list: [
-      "Amor incondicional hacia Dios y al prójimo",
-      "Integridad y transparencia en todas nuestras acciones",
-      "Servicio desinteresado a la comunidad",
-      "Crecimiento espiritual continuo",
-      "Unidad en la diversidad",
-      "Excelencia en todo lo que hacemos"
-    ],
-    image: "/images/valores.jpg"
-  }
-};
+// Imágenes de las tarjetas (los textos vienen de "Datos de la iglesia")
+const IMAGENES = { mision: "/images/mision.jpg", vision: "/images/vision.jpg", valores: "/images/valores.jpg" };
 
-// Definiciones de pastores para la transición (reemplaza imágenes/nombres según corresponda)
-interface Pastor {
-  name: string;
-  image: string;
-  alt: string;
+/** Pastor de la sucesión pastoral (se administra en "Datos de la iglesia"). */
+export interface PastorSucesion {
+  id: string;
+  nombre: string;
+  cargo: string | null;
+  imagen: string | null;
 }
 
-const oldPastors: Pastor[] = [
-  { name: "Pr. Hernando Rincón", image: "/images/hernando.jpg", alt: "Pastor Hernando Rincón" },
-  { name: "Pr. Helda Sanchez", image: "/images/helda.jpg", alt: "Pastora Helda Sanchez" }
-];
+interface Props {
+  mision: string | null;
+  vision: string | null;
+  valores: string[];
+  fundadores: PastorSucesion[];
+  actuales: PastorSucesion[];
+}
 
-const newPastors: Pastor[] = [
-  { name: "Pr. Nando Ricón", image: "/images/nando.jpg", alt: "Pastor Nando Ricón" },
-  { name: "Pr. Liceth Rebolledo", image: "/images/liceth.jpg", alt: "Pastora Liceth Rebolledo" }
-];
+function FotoPastor({ p, clase }: { p: PastorSucesion; clase: string }) {
+  return (
+    <div className={`relative w-60 h-60 overflow-hidden rounded-2xl shadow-lg bg-gray-100 ${clase}`}>
+      {p.imagen ? (
+        <Image src={p.imagen} alt={p.nombre} fill sizes="240px" className="object-cover" unoptimized={p.imagen.startsWith("/api/")} />
+      ) : (
+        <div className="flex h-full items-center justify-center text-5xl font-bold text-gray-300">{p.nombre.replace(/^Pr\.?\s*/i, "")[0]}</div>
+      )}
+    </div>
+  );
+}
 
-export default function AboutSectionAlt() {
+export default function AboutSectionAlt({ mision, vision, valores, fundadores, actuales }: Props) {
   const successionRef = useRef<HTMLDivElement | null>(null);
   const reduceMotion = useReducedMotion();
 
@@ -77,29 +69,32 @@ const newYMV = useTransform(scrollYProgress, [0, 0.40, 1], [60, -10, -20]);
   const oldY = reduceMotion ? 0 : oldYMV;
   const newY = reduceMotion ? 0 : newYMV;
 
-  const items: AboutItem[] = [
-    {
+  // Solo se muestran las tarjetas que tienen texto
+  const candidatos: (AboutItem | null)[] = [
+    mision ? {
       title: "Nuestra Misión",
-      text: aboutData.mission.text,
-      image: aboutData.mission.image,
+      text: mision,
+      image: IMAGENES.mision,
       icon: <Target className="h-6 w-6" />,
       accent: "from-green-500 to-emerald-500"
-    },
-    {
+    } : null,
+    vision ? {
       title: "Nuestra Visión",
-      text: aboutData.vision.text,
-      image: aboutData.vision.image,
+      text: vision,
+      image: IMAGENES.vision,
       icon: <Eye className="h-6 w-6" />,
       accent: "from-blue-500 to-indigo-500"
-    },
-    {
+    } : null,
+    valores.length > 0 ? {
       title: "Nuestros Valores",
       text: "Estos principios guían cada decisión y cada paso que damos como comunidad de fe.",
-      image: aboutData.values.image,
+      image: IMAGENES.valores,
       icon: <Heart className="h-6 w-6" />,
       accent: "from-rose-500 to-pink-500"
-    }
+    } : null
   ];
+  const items = candidatos.filter((x): x is AboutItem => x !== null);
+  const haySucesion = fundadores.length > 0 || actuales.length > 0;
 
   function AboutItemCard({ item, idx }: { item: AboutItem; idx: number }) {
     const ref = useRef<HTMLDivElement | null>(null);
@@ -151,7 +146,7 @@ const newYMV = useTransform(scrollYProgress, [0, 0.40, 1], [60, -10, -20]);
           </p>
           {item.title === "Nuestros Valores" && (
             <ul className="grid grid-cols-1 gap-y-4 text-base md:text-lg">
-              {aboutData.values.list.map((value, i) => (
+              {valores.map((value, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <span className="mt-2 block w-3 h-3 rounded-full bg-gradient-to-r from-blue-600 to-indigo-500 flex-shrink-0" />
                   <span className="text-gray-700 leading-relaxed">{value}</span>
@@ -175,7 +170,8 @@ const newYMV = useTransform(scrollYProgress, [0, 0.40, 1], [60, -10, -20]);
 
       {/* Transición Pastoral Scroll */}
       <div ref={successionRef} className="relative">
-        {/* Altura más corta y sin padding adicional (reversión) */}
+        {/* Sin pastores registrados no se muestra la sección (el ref sigue montado para la animación) */}
+        {haySucesion && (
         <div className="h-[300vh] sm:pb-30">
           <div
             className="sticky flex flex-col items-center justify-start"
@@ -214,13 +210,11 @@ const newYMV = useTransform(scrollYProgress, [0, 0.40, 1], [60, -10, -20]);
                 style={{ opacity: oldOpacity, y: oldY }}
                 className="absolute inset-x-0 top-0 flex flex-col md:flex-row gap-10 items-center justify-center z-10"
               >
-                {oldPastors.map(p => (
-                  <div key={p.name} className="text-center">
-                    <div className="relative w-60 h-60 rounded-2xl ring-4 ring-blue-100 shadow-lg">
-                      <Image src={p.image} alt={p.alt} fill className="object-cover" />
-                    </div>
-                    <p className="mt-4 font-semibold text-gray-800">{p.name}</p>
-                    <p className="text-sm text-gray-500">Pastorado Fundacional</p>
+                {fundadores.map(p => (
+                  <div key={p.id} className="text-center">
+                    <FotoPastor p={p} clase="ring-4 ring-blue-100" />
+                    <p className="mt-4 font-semibold text-gray-800">{p.nombre}</p>
+                    <p className="text-sm text-gray-500">{p.cargo || "Pastorado Fundacional"}</p>
                   </div>
                 ))}
               </motion.div>
@@ -230,19 +224,18 @@ const newYMV = useTransform(scrollYProgress, [0, 0.40, 1], [60, -10, -20]);
                 style={{ opacity: newOpacity, y: newY }}
                 className="absolute inset-x-0 top-0 flex flex-col md:flex-row gap-10 items-center justify-center z-10"
               >
-                {newPastors.map(p => (
-                  <div key={p.name} className="text-center">
-                    <div className="relative w-60 h-60 overflow-hidden ring-4 ring-emerald-100 shadow-lg">
-                      <Image src={p.image} alt={p.alt} fill className="object-cover" />
-                    </div>
-                    <p className="mt-4 font-semibold text-gray-800">{p.name}</p>
-                    <p className="text-sm text-emerald-600">Pastorado Actual</p>
+                {actuales.map(p => (
+                  <div key={p.id} className="text-center">
+                    <FotoPastor p={p} clase="ring-4 ring-emerald-100" />
+                    <p className="mt-4 font-semibold text-gray-800">{p.nombre}</p>
+                    <p className="text-sm text-emerald-600">{p.cargo || "Pastorado Actual"}</p>
                   </div>
                 ))}
               </motion.div>
                       </div> {/* /card container */}
                     </div> {/* /sticky */}
-                  </div> {/* /h-[300vh] */}
+                  </div>
+        )} {/* /h-[300vh] */}
                 </div> {/* /relative succession wrapper */}
               </section>
             );

@@ -10,6 +10,7 @@ import { edad, ESTADO_CIVIL, fecha, isoDate, opciones } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { ROL_LABEL } from "@/lib/roles";
 import { requirePage } from "@/lib/server/session";
+import { dosPasosActivo } from "@/server/dos-pasos";
 import { actualizarPerfil, olvidarDispositivos, quitarFirma } from "./actions";
 import { FirmaForm } from "./firma-form";
 import { PasswordForm } from "./password-form";
@@ -126,6 +127,8 @@ export default async function PerfilPage() {
               <Dato label="Bautizado" valor={f.bautizado ? "Sí" : "No"} />
             </dl>
           </Panel>
+          {/* Se oculta mientras la verificación en dos pasos esté desactivada (DOS_PASOS="desactivado") */}
+          {dosPasosActivo() && (
           <Panel
             title="Verificación en dos pasos"
             actions={
@@ -158,6 +161,7 @@ export default async function PerfilPage() {
               </ul>
             )}
           </Panel>
+          )}
           <Panel title="Cambiar contraseña">
             <PasswordForm />
             <p className="text-muted-foreground mt-3 text-xs">

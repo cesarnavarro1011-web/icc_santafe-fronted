@@ -22,6 +22,7 @@ const ROL_VARIANT = {
   LIDER: "success",
   MAESTRO: "warning",
   ESTUDIANTE: "muted",
+  EDITOR: "info",
 } as const;
 
 const DESCRIPCION_ROL: Record<Rol, string> = {
@@ -31,6 +32,7 @@ const DESCRIPCION_ROL: Record<Rol, string> = {
   LIDER: "Su grupo: fieles y bautismos. Registra la asistencia de la iglesia cuando su grupo tiene turno, y los diezmos y ofrendas",
   MAESTRO: "Enseña sus cursos: tareas, exámenes, asistencia y aprobación",
   ESTUDIANTE: "Sus cursos, tareas, exámenes y certificados",
+  EDITOR: "Alimenta la página web: portada, anuncios, eventos, prédicas, ministerios y peticiones de oración",
 }
 
 export default async function UsuariosPage({ searchParams }: { searchParams: Promise<{ q?: string; rol?: string }> }) {

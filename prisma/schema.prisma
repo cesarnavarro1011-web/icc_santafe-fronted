@@ -22,6 +22,7 @@ enum Rol {
   LIDER
   MAESTRO
   ESTUDIANTE
+  EDITOR // gestor de contenido de la página web
 }
 
 enum EstadoRegistro {
@@ -112,6 +113,18 @@ enum EstadoOfrenda {
   PENDIENTE // registrado por el líder, falta revisión del pastor
   VERIFICADO
   OBSERVADO // el pastor encontró algo que revisar
+}
+
+enum EstadoPublicacion {
+  BORRADOR
+  PUBLICADO
+}
+
+enum EstadoPeticion {
+  NUEVA
+  EN_ORACION
+  RESPONDIDA
+  ARCHIVADA
 }
 
 enum PropositoOtp {
@@ -608,4 +621,173 @@ model RegistroOfrenda {
 
   @@index([fecha])
   @@index([registradoPorId])
+}
+
+// ── Página web pública (lo administra el Gestor de contenido) ──
+
+/// Diapositivas del carrusel de la portada
+model WebSlide {
+  id            String            @id @default(cuid())
+  titulo        String
+  subtitulo     String?
+  descripcion   String?
+  imagenPath    String? // subida al disco (STORAGE_DIR/web/...)
+  imagenUrl     String? // o una imagen de /public
+  ctaTexto      String?
+  ctaLink       String?
+  orden         Int               @default(0)
+  estado        EstadoPublicacion @default(BORRADOR)
+  publicarDesde DateTime?
+  publicarHasta DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+/// Barra de anuncio destacada del sitio
+model WebAnuncio {
+  id            String            @id @default(cuid())
+  texto         String
+  enlace        String?
+  textoEnlace   String?
+  color         String            @default("violeta")
+  estado        EstadoPublicacion @default(BORRADOR)
+  publicarDesde DateTime?
+  publicarHasta DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+model WebEvento {
+  id          String            @id @default(cuid())
+  titulo      String
+  descripcion String
+  fecha       DateTime          @db.Date
+  hora        String // "19:00"
+  lugar       String
+  categoria   String            @default("evento-especial")
+  recurrente  Boolean           @default(false)
+  destacado   Boolean           @default(false)
+  imagenPath  String?
+  imagenUrl   String?
+  estado      EstadoPublicacion @default(BORRADOR)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([fecha])
+}
+
+model WebPredica {
+  id          String            @id @default(cuid())
+  titulo      String
+  descripcion String?
+  predicador  String
+  fecha       DateTime          @db.Date
+  videoUrl    String // YouTube o Vimeo
+  serie       String?
+  etiquetas   String[]          @default([])
+  imagenPath  String? // miniatura propia; si no, la de YouTube
+  destacada   Boolean           @default(false)
+  vistas      Int               @default(0)
+  estado      EstadoPublicacion @default(BORRADOR)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([fecha])
+}
+
+model WebMinisterio {
+  id          String            @id @default(cuid())
+  slug        String            @unique // "jovenes" → /ministerios/jovenes
+  nombre      String
+  descripcion String
+  publico     String? // a quién va dirigido
+  horario     String?
+  lugar       String?
+  lider       String?
+  correo      String?
+  imagenPath  String?
+  imagenUrl   String?
+  orden       Int               @default(0)
+  estado      EstadoPublicacion @default(BORRADOR)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+/// Datos generales de la iglesia para la web (una sola fila, id "principal").
+/// Se muestran en el pie de página, Contáctanos y Nosotros.
+model WebSitio {
+  id                 String   @id @default("principal")
+  nombre             String   @default("Iglesia Cuadrangular Santa Fe")
+  lema               String?
+  descripcion        String? // texto corto del pie de página
+  // Contacto
+  telefono           String?
+  whatsapp           String?
+  correo             String?
+  direccion          String?
+  ciudad             String?
+  mapaUrl            String? // enlace de Google Maps
+  emergencias        String? // teléfono pastoral para emergencias
+  /// Bloques separados por una línea en blanco: primera línea = día, siguientes = horarios
+  horarios           String?
+  facebook           String?
+  instagram          String?
+  youtube            String?
+  tiktok             String?
+  // Nosotros
+  nosotrosTitulo     String?
+  nosotrosTexto      String?
+  nosotrosImagenPath String?
+  mision             String?
+  vision             String?
+  valores            String? // uno por línea
+  /// [{ valor: "300+", etiqueta: "Miembros activos" }]
+  estadisticas       Json     @default("[]")
+  updatedAt          DateTime @updatedAt
+}
+
+/// Etapas de "Nuestra historia" (Nosotros)
+model WebHistoria {
+  id         String            @id @default(cuid())
+  titulo     String
+  periodo    String? // "1999 - 2005"
+  texto      String
+  imagenPath String?
+  imagenUrl  String?
+  orden      Int               @default(0)
+  estado     EstadoPublicacion @default(PUBLICADO)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+}
+
+/// Personas de Nosotros: sucesión pastoral (fundadores / actuales) y equipo pastoral
+model WebPersona {
+  id          String            @id @default(cuid())
+  nombre      String
+  cargo       String?
+  descripcion String?
+  seccion     String // "fundadores" | "actuales" | "equipo"
+  imagenPath  String?
+  imagenUrl   String?
+  orden       Int               @default(0)
+  estado      EstadoPublicacion @default(PUBLICADO)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([seccion, orden])
+}
+
+/// Peticiones de oración que envían los visitantes desde la página
+model PeticionOracion {
+  id        String         @id @default(cuid())
+  nombre    String
+  contacto  String? // celular o correo, opcional
+  mensaje   String
+  anonima   Boolean        @default(false)
+  estado    EstadoPeticion @default(NUEVA)
+  nota      String? // nota interna del equipo
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([estado, createdAt])
 }

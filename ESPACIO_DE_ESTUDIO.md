@@ -19,7 +19,10 @@ npm run db:superadmin -- --usuario admin --password "TuClave123" --nombre Cesar 
 # 4. (Opcional) Importar los datos del Excel del sistema anterior
 npm run db:importar -- "C:\Users\TECNOLOGIA\Downloads\Software  Para iglesia.xlsx"
 
-# 5. Arrancar
+# 5. (Opcional) Contenido inicial de la página web: portada, eventos, ministerios, anuncio
+npm run db:contenido
+
+# 6. Arrancar
 npm run dev    # → http://localhost:3000/login
 ```
 
@@ -39,6 +42,7 @@ Sin `SMTP_HOST` en `.env`, los correos (códigos OTP, confirmaciones) se imprime
 | Líder | Su grupo (Mi grupo), fieles y bautismos; registra la asistencia cuando su grupo tiene turno y los diezmos y ofrendas recogidos |
 | Maestro | Sus cursos: tareas, exámenes, asistencia de clases y aprobación |
 | Estudiante | Sus cursos, entregas, exámenes, asistencia y certificados |
+| Gestor de contenido | Alimenta la página web pública: portada, anuncios, eventos, prédicas, ministerios y peticiones de oración |
 
 **Asistencia de la iglesia por turnos:** el pastor arma los grupos (Grupos y líderes) y asigna cada semana
 qué grupo registra (Cronograma de asistencia, con rotación automática). Solo el líder del grupo de turno
@@ -77,3 +81,17 @@ Todos los roles tienen “Mis cursos” y “Perfil”. Los permisos por ruta es
 - `src/lib/server/storage.ts`: archivos en disco (reemplaza Drive); se sirven con permisos en `/api/archivos/…`
 - `src/lib/config.ts`: nota mínima (6), nota máxima (10) y asistencia mínima (75 %)
 - `scripts/`: importación del Excel y creación del superadmin
+
+## Página web pública
+
+La portada (`/`) y las páginas de ministerios leen su contenido de la base de datos. Se administra en
+**Página web** del espacio de estudio (roles Gestor de contenido, Pastor y Superadmin):
+
+- **Portada:** carrusel con imagen, botón, orden y fechas de publicación (programar inicio y fin).
+- **Anuncios:** barra flotante que el visitante puede cerrar.
+- **Eventos:** con categoría, destacado y "Agregar a mi calendario" (.ics) para el visitante.
+- **Prédicas:** enlace de YouTube/Vimeo; se ven dentro de la página, con búsqueda, series, vistas y compartir.
+- **Ministerios:** tarjeta en la portada y página propia en `/ministerios/<slug>`.
+- **Peticiones de oración:** formulario público (con límite anti-spam) y bandeja para el equipo.
+
+Las imágenes subidas se guardan en `STORAGE_DIR/web/` y se sirven públicamente por `/api/publico/web/...`.

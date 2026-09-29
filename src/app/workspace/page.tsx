@@ -4,6 +4,12 @@ import {
   Award,
   BookOpen,
   CalendarCheck,
+  CalendarDays,
+  Globe,
+  HandHeart,
+  Image as ImageIcon,
+  Megaphone,
+  Video,
   CalendarRange,
   CheckCheck,
   Church,
@@ -119,6 +125,16 @@ export default async function InicioPage({ searchParams }: { searchParams: Promi
       {user.rol === "LIDER" && <TableroLider />}
       {user.rol === "SUPERVISOR" && <TableroSupervisor />}
       {user.rol === "MAESTRO" && <TableroMaestro />}
+      {user.rol === "EDITOR" && (
+        <div className="grid gap-3 md:grid-cols-3">
+          <Atajo href="/workspace/contenido" icon={Globe} label="Resumen de la página web" />
+          <Atajo href="/workspace/contenido/eventos" icon={CalendarDays} label="Publicar un evento" />
+          <Atajo href="/workspace/contenido/predicas" icon={Video} label="Subir una prédica" />
+          <Atajo href="/workspace/contenido/portada" icon={ImageIcon} label="Cambiar la portada" />
+          <Atajo href="/workspace/contenido/anuncios" icon={Megaphone} label="Publicar un anuncio" />
+          <Atajo href="/workspace/contenido/peticiones" icon={HandHeart} label="Peticiones de oración" />
+        </div>
+      )}
       <TableroEstudiante fielId={user.fielId} compacto={!tieneRol(user.rol, R.APRENDIZ)} />
     </>
   );

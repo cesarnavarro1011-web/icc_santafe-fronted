@@ -1,181 +1,149 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
+import type { SlidePublica } from '@/server/contenido';
 
-interface HeroSlide {
-  id: string;
-  title: string;
-  subtitle: string;
-  description: string;
-  imageUrl: string;
-  ctaText: string;
-  ctaLink: string;
-  isActive: boolean;
-}
+// Se muestra si el gestor de contenido aún no ha publicado diapositivas
+const BIENVENIDA: SlidePublica = {
+  id: 'bienvenida',
+  titulo: 'Bienvenidos a nuestra familia',
+  subtitulo: 'Iglesia Cuadrangular Santa Fe',
+  descripcion: 'Una comunidad que crece en número y en conocimiento. Te esperamos con los brazos abiertos.',
+  imagen: '/images/DSC00630.jpg',
+  ctaTexto: 'Conócenos',
+  ctaLink: '/nosotros',
+};
 
-// Datos de ejemplo - en producción vendrían del backend
-const heroSlides: HeroSlide[] = [
-  {
-    id: '1',
-    title: 'Bienvenidos a Nuestra Familia',
-    subtitle: 'Una comunidad unida en Cristo',
-    description: 'Descubre el amor de Dios y forma parte de una familia que crece junta en la fe, esperanza y amor.',
-    imageUrl: '/images/hero1.jpg', // Placeholder - reemplazar con imagen real
-    ctaText: 'Únete a Nosotros',
-    ctaLink: '/quiero-saber-mas',
-    isActive: true,
-  },
-  {
-    id: '2',
-    title: 'Servicios Dominicales',
-    subtitle: 'Cada domingo a las 10:00 AM',
-    description: 'Acompáñanos en nuestros servicios llenos de adoración, enseñanza bíblica y comunión fraternal.',
-    imageUrl: '/api/placeholder/1200/600', // Placeholder - reemplazar con imagen real
-    ctaText: 'Ver Horarios',
-    ctaLink: '/eventos',
-    isActive: true,
-  },
-  {
-    id: '3',
-    title: 'Ministerios para Toda la Familia',
-    subtitle: 'Creciendo juntos en la fe',
-    description: 'Tenemos ministerios especiales para niños, jóvenes, adultos y parejas. Encuentra tu lugar en nuestra comunidad.',
-    imageUrl: '/api/placeholder/1200/600', // Placeholder - reemplazar con imagen real
-    ctaText: 'Conocer Ministerios',
-    ctaLink: '/ministerios',
-    isActive: true,
-  },
-];
+const INTERVALO = 6000;
 
-export default function Hero() {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [isAutoPlay, setIsAutoPlay] = useState(true);
+export default function Hero({ slides }: { slides: SlidePublica[] }) {
+  const lista = slides.length ? slides : [BIENVENIDA];
+  const [actual, setActual] = useState(0);
+  const [pausado, setPausado] = useState(false);
+  const [progreso, setProgreso] = useState(0);
 
-  const activeSlides = heroSlides.filter(slide => slide.isActive);
+  const ir = useCallback((i: number) => {
+    setActual((i + lista.length) % lista.length);
+    setProgreso(0);
+  }, [lista.length]);
 
-  // Auto-play functionality
+  // Avance automático con barra de progreso; se pausa al pasar el mouse o con el botón
   useEffect(() => {
-    if (!isAutoPlay || activeSlides.length <= 1) return;
+    if (pausado || lista.length <= 1) return;
+    const paso = 50;
+    const t = setInterval(() => {
+      setProgreso((p) => {
+        if (p + paso >= INTERVALO) {
+          setActual((a) => (a + 1) % lista.length);
+          return 0;
+        }
+        return p + paso;
+      });
+    }, paso);
+    return () => clearInterval(t);
+  }, [pausado, lista.length]);
 
-    const interval = setInterval(() => {
-      setCurrentSlide(prev => (prev + 1) % activeSlides.length);
-    }, 5000);
+  // Flechas del teclado
+  useEffect(() => {
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') ir(actual + 1);
+      if (e.key === 'ArrowLeft') ir(actual - 1);
+    };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+  }, [actual, ir]);
 
-    return () => clearInterval(interval);
-  }, [isAutoPlay, activeSlides.length]);
-
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index);
-    setIsAutoPlay(false);
-    setTimeout(() => setIsAutoPlay(true), 10000); // Resume auto-play after 10 seconds
-  };
-
-  const nextSlide = () => {
-    setCurrentSlide(prev => (prev + 1) % activeSlides.length);
-    setIsAutoPlay(false);
-    setTimeout(() => setIsAutoPlay(true), 10000);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide(prev => (prev - 1 + activeSlides.length) % activeSlides.length);
-    setIsAutoPlay(false);
-    setTimeout(() => setIsAutoPlay(true), 10000);
-  };
-
-  if (activeSlides.length === 0) {
-    return null;
-  }
-
-  const currentSlideData = activeSlides[currentSlide];
+  const s = lista[actual];
 
   return (
-    <section className="relative h-screen flex items-center justify-center overflow-hidden">
-      {/* Background Image */}
-      <div className="absolute inset-0 z-0">
-        <Image
-          src={currentSlideData.imageUrl}
-          alt={currentSlideData.title}
-          fill
-          className="object-cover"
-          priority
-        />
-        <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+    <section
+      id="hero"
+      className="relative flex h-screen items-center justify-center overflow-hidden bg-[#0b0b0d]"
+      // La pausa solo se controla con el botón (no al pasar el cursor)
+      onTouchStart={(e) => ((e.currentTarget as HTMLElement).dataset.x = String(e.touches[0].clientX))}
+      onTouchEnd={(e) => {
+        const x0 = Number((e.currentTarget as HTMLElement).dataset.x);
+        const dx = e.changedTouches[0].clientX - x0;
+        if (Math.abs(dx) > 50) ir(actual + (dx < 0 ? 1 : -1));
+      }}
+    >
+      <AnimatePresence mode="sync">
+        <motion.div
+          key={s.id}
+          className="absolute inset-0"
+          initial={{ opacity: 0, scale: 1.08 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.1, ease: 'easeOut' }}
+        >
+          {s.imagen ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={s.imagen} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full bg-gradient-to-br from-[#5a189a] via-[#0E34A0] to-[#710000]" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/30" />
+        </motion.div>
+      </AnimatePresence>
+
+      <div className="relative z-10 mx-auto max-w-4xl px-4 text-center text-white">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={s.id}
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.6 }}
+          >
+            {s.subtitulo && <h2 className="mb-3 text-sm font-semibold tracking-[0.2em] text-[#f5cc00] uppercase md:text-base">{s.subtitulo}</h2>}
+            <h1 className="mb-6 text-4xl leading-tight font-bold md:text-6xl">{s.titulo}</h1>
+            {s.descripcion && <p className="mx-auto mb-8 max-w-2xl text-lg text-gray-200 md:text-2xl">{s.descripcion}</p>}
+            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+              {s.ctaTexto && s.ctaLink && (
+                <Link
+                  href={s.ctaLink}
+                  className="rounded-full bg-white px-8 py-3 font-semibold text-black shadow-lg transition-all duration-200 hover:-translate-y-1 hover:bg-[#f5cc00] hover:text-white hover:shadow-xl"
+                >
+                  {s.ctaTexto}
+                </Link>
+              )}
+              <Link
+                href="/#predicaciones"
+                className="flex items-center gap-2 rounded-full border border-white/40 bg-white/10 px-6 py-3 font-semibold text-white backdrop-blur-sm transition-all duration-200 hover:bg-white hover:text-black"
+              >
+                <Play className="size-5" /> Ver prédicas
+              </Link>
+            </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 text-center text-white max-w-4xl mx-auto px-4">
-        <h2 className="text-lg md:text-xl font-semibold mb-2 text-blue-200 uppercase tracking-wide">
-          {currentSlideData.subtitle}
-        </h2>
-        <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-          {currentSlideData.title}
-        </h1>
-        <p className="text-xl md:text-2xl mb-8 text-gray-200 max-w-2xl mx-auto">
-          {currentSlideData.description}
-        </p>
-        
-        {/* CTAs */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <Link
-            href={currentSlideData.ctaLink}
-            className="px-8 py-3 rounded-full font-semibold bg-[#FFFFFFFF] text-black shadow-lg hover:shadow-xl hover:bg-[#f5cc00] hover:text-white transition-all duration-200 transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[#f5cc00]/60"
-          >
-            {currentSlideData.ctaText}
-          </Link>
-          <Link
-            href="/predicaciones"
-            className="flex items-center space-x-2 px-6 py-3 rounded-full font-semibold bg-[#FFFFFFFF] text-black shadow-lg hover:shadow-xl hover:bg-[#f5cc00] hover:text-white transition-all duration-200 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-[#f5cc00]/60"
-          >
-            <Play className="h-5 w-5" />
-            <span>Ver Predicaciones</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Navigation Arrows */}
-      {activeSlides.length > 1 && (
+      {lista.length > 1 && (
         <>
-          <button
-            onClick={prevSlide}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10  bg-opacity-20 text-white p-3 rounded-full hover:bg-opacity-30 transition-all duration-200 backdrop-blur-sm"
-          >
-            <ChevronLeft className="h-6 w-6" />
+          <button onClick={() => ir(actual - 1)} aria-label="Anterior" className="absolute top-1/2 left-4 z-10 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white backdrop-blur-sm transition hover:bg-white/25">
+            <ChevronLeft className="size-6" />
           </button>
-          <button
-            onClick={nextSlide}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 bg-opacity-20 text-white p-3 rounded-full hover:bg-opacity-30 transition-all duration-200 backdrop-blur-sm"
-          >
-            <ChevronRight className="h-6 w-6" />
+          <button onClick={() => ir(actual + 1)} aria-label="Siguiente" className="absolute top-1/2 right-4 z-10 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white backdrop-blur-sm transition hover:bg-white/25">
+            <ChevronRight className="size-6" />
           </button>
+          <div className="absolute bottom-10 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2">
+            {lista.map((x, i) => (
+              <button key={x.id} onClick={() => ir(i)} aria-label={`Ir a ${x.titulo}`} className="h-1.5 w-10 overflow-hidden rounded-full bg-white/30">
+                <span
+                  className="block h-full rounded-full bg-[#f5cc00]"
+                  style={{ width: i < actual ? '100%' : i === actual ? `${(progreso / INTERVALO) * 100}%` : '0%' }}
+                />
+              </button>
+            ))}
+            <button onClick={() => setPausado((p) => !p)} aria-label={pausado ? 'Reanudar' : 'Pausar'} className="ml-2 rounded-full p-1 text-white/80 hover:text-white">
+              {pausado ? <Play className="size-4" /> : <Pause className="size-4" />}
+            </button>
+          </div>
         </>
       )}
-
-      {/* Slide Indicators */}
-      {activeSlides.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 flex space-x-2">
-          {activeSlides.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => goToSlide(index)}
-              className={`w-2 h-2 rounded-full transition-all duration-200 ${
-                index === currentSlide
-                  ? 'bg-white'
-                  : 'bg-white bg-opacity-50 hover:bg-opacity-75'
-              }`}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Scroll Indicator */}
-      <div className="mb-5 absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 animate-bounce">
-        <div className="w-6 h-10 border-2 border-gray-100 border-opacity-50 rounded-full flex justify-center">
-          <div className="w-1 h-3 bg-gray-100 bg-opacity-50 rounded-full mt-2"></div>
-        </div>
-      </div>
     </section>
   );
 }
