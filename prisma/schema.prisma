@@ -799,6 +799,7 @@ model WebSitio {
   nosotrosTitulo     String?
   nosotrosTexto      String?
   nosotrosImagenPath String?
+  contactoImagenPath String? // fondo del encabezado de Contáctanos
   mision             String?
   vision             String?
   valores            String? // uno por línea

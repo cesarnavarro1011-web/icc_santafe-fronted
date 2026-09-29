@@ -142,6 +142,11 @@ export default async function DatosIglesiaPage() {
             <Field label="Enlace de Google Maps" className="sm:col-span-2">
               <Input name="mapaUrl" defaultValue={s.mapaUrl ?? ""} placeholder="https://maps.app.goo.gl/… (botón “Cómo llegar”)" />
             </Field>
+            <ImagenField
+              actual={s.contactoImagenPath ? urlImagen({ imagenPath: s.contactoImagenPath, updatedAt: s.updatedAt }) : null}
+              etiqueta="Imagen de fondo de Contáctanos"
+              ayuda="Horizontal (ej. 1920×600). Sin imagen se usa el degradado azul-morado."
+            />
             <Field label="Horarios de servicio" className="sm:col-span-2">
               <Textarea
                 name="horarios"

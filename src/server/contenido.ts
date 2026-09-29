@@ -180,6 +180,7 @@ export async function sitioPublico() {
     mapaUrl: s.mapaUrl,
     emergencias: s.emergencias,
     horarios: parsearHorarios(s.horarios),
+    contactoImagen: s.contactoImagenPath ? urlImagen({ imagenPath: s.contactoImagenPath, updatedAt: s.updatedAt }) : null,
     redes: {
       facebook: s.facebook,
       instagram: s.instagram,

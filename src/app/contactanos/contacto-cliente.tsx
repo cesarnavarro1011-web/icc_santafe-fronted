@@ -112,7 +112,15 @@ export default function ContactoCliente({ sitio, footer }: { sitio: SitioPublico
       <Header />
       <main>
         {/* Hero Section */}
-        <section className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-16">
+        {/* pt extra: el menú superior es fijo y tapaba el título */}
+        <section
+          className="relative isolate overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 bg-cover bg-center pt-32 pb-16 text-white md:pt-36 md:pb-20"
+          style={
+            sitio.contactoImagen
+              ? { backgroundImage: `linear-gradient(to right, rgba(15,23,42,.8), rgba(59,7,100,.55)), url("${sitio.contactoImagen}")` }
+              : undefined
+          }
+        >
           <div className="container mx-auto px-4">
             <div className="text-center">
               <h1 className="text-4xl md:text-5xl font-bold mb-4">

@@ -270,7 +270,10 @@ export async function guardarContactoIglesia(fd: FormData) {
   return runAction(async () => {
     await requireUser(R.CONTENIDO);
     const d = contactoSchema.parse(formObj(fd));
-    await prisma.webSitio.upsert({ where: { id: "principal" }, create: { id: "principal", ...d }, update: d });
+    const actual = await prisma.webSitio.findUnique({ where: { id: "principal" } });
+    const { imagenPath } = await procesarImagen(fd, "contacto", actual?.contactoImagenPath);
+    const data = { ...d, ...(imagenPath !== undefined ? { contactoImagenPath: imagenPath } : {}) };
+    await prisma.webSitio.upsert({ where: { id: "principal" }, create: { id: "principal", ...data }, update: data });
     refrescarSitio();
     return null;
   });
