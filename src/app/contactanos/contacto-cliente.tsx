@@ -21,6 +21,9 @@ import type { SitioPublico } from '@/server/contenido';
 
 /** Página de contacto. Los datos (teléfono, correo, horarios…) vienen de "Datos de la iglesia". */
 export default function ContactoCliente({ sitio, footer }: { sitio: SitioPublico; footer: ReactNode }) {
+  // Lo que se busca en Google Maps: dirección + ciudad (sin ciudad, Maps puede ubicar otra "Carrera 43")
+  // El mapa se guía por el nombre del lugar en Google Maps (la dirección escrita lo descentraba)
+  const consultaMapa = [sitio.nombre, sitio.ciudad].filter(Boolean).join(", ");
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -382,22 +385,39 @@ export default function ContactoCliente({ sitio, footer }: { sitio: SitioPublico
               <h2 className="text-3xl font-bold text-gray-900 text-center mb-8">
                 Cómo Llegar
               </h2>
-              <div className="bg-gray-100 rounded-lg py-14 flex items-center justify-center">
-                <div className="text-center text-gray-700 px-4">
-                  <MapPin className="h-14 w-14 mx-auto mb-4 text-blue-600" />
-                  <p className="text-lg font-medium">{sitio.direccion}</p>
-                  {sitio.ciudad && <p className="text-gray-500">{sitio.ciudad}</p>}
-                  {sitio.mapaUrl && (
-                    <a
-                      href={sitio.mapaUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-6 inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
-                    >
-                      <Navigation className="h-5 w-5" /> Abrir en Google Maps
-                    </a>
-                  )}
-                </div>
+              {/* Mapa de Google incrustado a partir de la dirección (no requiere clave de API) */}
+              <div className="overflow-hidden rounded-lg border shadow-sm">
+                <iframe
+                  title={`Mapa: ${sitio.direccion}`}
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(consultaMapa)}&z=16&hl=es&output=embed`}
+                  className="h-96 w-full border-0"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  allowFullScreen
+                />
+              </div>
+              <div className="mt-6 flex flex-col items-center gap-3 text-center text-gray-700 sm:flex-row sm:justify-center">
+                <p className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-blue-600" />
+                  <span className="font-medium">{sitio.direccion}</span>
+                  {sitio.ciudad && <span className="text-gray-500">· {sitio.ciudad}</span>}
+                </p>
+                <a
+                  href={sitio.mapaUrl || `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(consultaMapa)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
+                >
+                  <Navigation className="h-5 w-5" /> Cómo llegar con Google Maps
+                </a>
+                <a
+                  href={`https://waze.com/ul?q=${encodeURIComponent(consultaMapa)}&navigate=yes`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full bg-[#33ccff] px-6 py-3 font-semibold text-white hover:bg-[#1fb8eb]"
+                >
+                  <Navigation className="h-5 w-5" /> Ir con Waze
+                </a>
               </div>
             </div>
           </section>
