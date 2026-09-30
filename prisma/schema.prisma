@@ -890,3 +890,23 @@ model PeticionOracion {
 
   @@index([estado, createdAt])
 }
+
+/// Diseño editable del certificado (una sola fila, id "principal"). Lo vacío usa el texto por defecto.
+model PlantillaCertificado {
+  id               String   @id @default("principal")
+  institucion      String? // vacío = nombre de la iglesia (Datos de la iglesia)
+  subtitulo        String?
+  titulo           String?
+  textoIntro       String?
+  textoPrograma    String?
+  versiculo        String?
+  versiculoCita    String?
+  mostrarVersiculo Boolean  @default(true)
+  lugar            String? // vacío = ciudad de la iglesia
+  cargoMaestro     String?
+  cargoSupervisor  String?
+  cargoPastor      String?
+  logoPath         String? // vacío = logo de la iglesia
+  selloPath        String?
+  updatedAt        DateTime @updatedAt
+}

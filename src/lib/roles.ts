@@ -103,6 +103,7 @@ export const NAV: NavSection[] = [
       { href: "/workspace/calificar-examenes", label: "Exámenes", icon: "check-check", roles: R.DOCENTE },
       { href: "/workspace/control-calidad", label: "Control de calidad", icon: "shield-check", roles: R.SUPERVISION },
       { href: "/workspace/certificados", label: "Certificados", icon: "award", roles: R.ACADEMICO },
+      { href: "/workspace/certificados/plantilla", label: "Plantilla de certificado", icon: "scroll-text", roles: R.ADMIN },
     ],
   },
   {

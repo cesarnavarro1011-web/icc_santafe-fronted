@@ -1,13 +1,14 @@
 import "server-only";
+import { readFile } from "fs/promises";
+import path from "path";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
 import { ACADEMICO, NOMBRE_IGLESIA } from "@/lib/config";
-import { fecha } from "@/lib/labels";
 import { R, tieneRol } from "@/lib/roles";
 import { ErrorNegocio } from "@/lib/server/errors";
 import { enviarCorreo, esc, plantillaCorreo } from "@/lib/server/mail";
 import type { UsuarioSesion } from "@/lib/server/session";
-import { carpetaFiel, guardarArchivo, leerArchivo } from "@/lib/server/storage";
+import { carpetaFiel, guardarArchivo, leerArchivo, tipoReal } from "@/lib/server/storage";
 import { asistenciaEstudiante, exigirCursoEnAlcance } from "./academico";
 import { nuevoCodigo } from "./codigos";
 
@@ -77,26 +78,33 @@ export async function firmarCertificado(user: UsuarioSesion, certificadoId: stri
   await emitirCertificado(c.id);
 }
 
-async function emitirCertificado(certificadoId: string) {
+/**
+ * Genera el PDF con la plantilla actual y lo guarda en disco. Se usa al emitir y para
+ * certificados emitidos sin PDF (datos migrados o de prueba) o al regenerar con la plantilla nueva.
+ */
+export async function generarPdfDeCertificado(certificadoId: string) {
   const c = await prisma.certificado.findUniqueOrThrow({
     where: { id: certificadoId },
     include: { fiel: true, curso: true },
   });
+  if (c.estado !== "EMITIDO" && !c.firmaPastorAt) throw new ErrorNegocio("El certificado aún no tiene todas las firmas.");
   const firmantes = await prisma.fiel.findMany({
     where: { id: { in: [c.firmaMaestroId, c.firmaSupervisorId, c.firmaPastorId].filter((x): x is string => !!x) } },
     include: { usuario: { select: { firmaPath: true } } },
   });
   const firmante = (id: string | null) => firmantes.find((f) => f.id === id);
 
+  const plantilla = await plantillaResuelta();
   const pdf = await generarPdfCertificado({
     codigo: c.codigo,
     estudiante: `${c.fiel.nombre} ${c.fiel.apellido}`,
     curso: c.curso.nombre,
-    fecha: new Date(),
+    fecha: c.emitidoAt ?? new Date(),
+    plantilla,
     firmas: [
-      { rol: "Maestro", fiel: firmante(c.firmaMaestroId) },
-      { rol: "Supervisor", fiel: firmante(c.firmaSupervisorId) },
-      { rol: "Pastor", fiel: firmante(c.firmaPastorId) },
+      { rol: plantilla.cargos.maestro, fiel: firmante(c.firmaMaestroId) },
+      { rol: plantilla.cargos.supervisor, fiel: firmante(c.firmaSupervisorId) },
+      { rol: plantilla.cargos.pastor, fiel: firmante(c.firmaPastorId) },
     ].map(({ rol, fiel }) => ({
       rol,
       nombre: fiel ? `${fiel.nombre} ${fiel.apellido}` : "",
@@ -107,8 +115,13 @@ async function emitirCertificado(certificadoId: string) {
   const ruta = await guardarArchivo(`${carpetaFiel(c.fiel)}/certificados/${c.codigo}.pdf`, pdf);
   await prisma.certificado.update({
     where: { id: c.id },
-    data: { pdfPath: ruta, estado: "EMITIDO", emitidoAt: new Date() },
+    data: { pdfPath: ruta, estado: "EMITIDO", emitidoAt: c.emitidoAt ?? new Date() },
   });
+  return { c, pdf, ruta };
+}
+
+async function emitirCertificado(certificadoId: string) {
+  const { c, pdf } = await generarPdfDeCertificado(certificadoId);
 
   if (c.fiel.correo) {
     await enviarCorreo({
@@ -126,6 +139,82 @@ async function emitirCertificado(certificadoId: string) {
   }
 }
 
+// ── Plantilla editable ───────────────────────────────────────
+
+/** Textos por defecto (los del formato institucional). Lo que la plantilla deje vacío usa estos. */
+export const CERT_DEFECTO = {
+  subtitulo: "Ministerio de Educación Teológica y Liderazgo",
+  titulo: "Certificado de Reconocimiento",
+  textoIntro: "Por cuanto ha demostrado dedicación, fidelidad y excelencia académica, se otorga el presente certificado a:",
+  textoPrograma: "Por haber completado satisfactoriamente los requisitos teóricos y prácticos del programa formal de capacitación ministerial en:",
+  versiculo: "Procura con diligencia presentarte a Dios aprobado, como obrero que no tiene de qué avergonzarse, que usa bien la palabra de verdad.",
+  versiculoCita: "2 Timoteo 2:15",
+  cargoMaestro: "Profesor",
+  cargoSupervisor: "Supervisor",
+  cargoPastor: "Pastor Principal",
+};
+
+export type PlantillaResuelta = {
+  institucion: string;
+  subtitulo: string;
+  titulo: string;
+  textoIntro: string;
+  textoPrograma: string;
+  versiculo: string | null;
+  versiculoCita: string;
+  lugar: string;
+  cargos: { maestro: string; supervisor: string; pastor: string };
+  logoPath: string | null;
+  selloPath: string | null;
+};
+
+export async function obtenerPlantillaCertificado() {
+  return (
+    (await prisma.plantillaCertificado.findUnique({ where: { id: "principal" } })) ??
+    (await prisma.plantillaCertificado.create({ data: { id: "principal" } }))
+  );
+}
+
+/** Plantilla con los valores por defecto aplicados (nombre y ciudad salen de Datos de la iglesia). */
+export async function plantillaResuelta(): Promise<PlantillaResuelta> {
+  const [p, sitio] = await Promise.all([obtenerPlantillaCertificado(), prisma.webSitio.findUnique({ where: { id: "principal" } })]);
+  const o = (v: string | null | undefined, def: string) => v?.trim() || def;
+  return {
+    institucion: o(p.institucion, sitio?.nombre || NOMBRE_IGLESIA),
+    subtitulo: o(p.subtitulo, CERT_DEFECTO.subtitulo),
+    titulo: o(p.titulo, CERT_DEFECTO.titulo),
+    textoIntro: o(p.textoIntro, CERT_DEFECTO.textoIntro),
+    textoPrograma: o(p.textoPrograma, CERT_DEFECTO.textoPrograma),
+    versiculo: p.mostrarVersiculo ? o(p.versiculo, CERT_DEFECTO.versiculo) : null,
+    versiculoCita: o(p.versiculoCita, CERT_DEFECTO.versiculoCita),
+    lugar: o(p.lugar, sitio?.ciudad ? `${sitio.ciudad}, Colombia` : "Colombia"),
+    cargos: {
+      maestro: o(p.cargoMaestro, CERT_DEFECTO.cargoMaestro),
+      supervisor: o(p.cargoSupervisor, CERT_DEFECTO.cargoSupervisor),
+      pastor: o(p.cargoPastor, CERT_DEFECTO.cargoPastor),
+    },
+    logoPath: p.logoPath,
+    selloPath: p.selloPath,
+  };
+}
+
+/** PDF de ejemplo con la plantilla actual (página de la plantilla). */
+export async function vistaPreviaCertificado() {
+  const p = await plantillaResuelta();
+  return generarPdfCertificado({
+    codigo: "CERT-EJEMPLO",
+    estudiante: "Nombre y Apellidos del Estudiante",
+    curso: "Nombre del Curso o Programa",
+    fecha: new Date(),
+    plantilla: p,
+    firmas: [
+      { rol: p.cargos.maestro, nombre: "Nombre del Profesor", firmaPath: null },
+      { rol: p.cargos.supervisor, nombre: "Nombre del Supervisor", firmaPath: null },
+      { rol: p.cargos.pastor, nombre: "Nombre del Pastor", firmaPath: null },
+    ],
+  });
+}
+
 // ── PDF ──────────────────────────────────────────────────────
 
 type DatosPdf = {
@@ -133,76 +222,214 @@ type DatosPdf = {
   estudiante: string;
   curso: string;
   fecha: Date;
+  plantilla: PlantillaResuelta;
+  /** En orden: profesor, supervisor, pastor */
   firmas: { rol: string; nombre: string; firmaPath: string | null }[];
 };
 
-const VIOLETA = rgb(0.486, 0.227, 0.929);
-const GRIS = rgb(0.45, 0.45, 0.5);
+const AZUL = rgb(0.118, 0.227, 0.373); // #1e3a5f
+const DORADO = rgb(0.804, 0.643, 0.212); // #cda436
+const DORADO_CLARO = rgb(0.988, 0.969, 0.918);
+const VINO = rgb(0.545, 0.063, 0.063);
+const TEXTO = rgb(0.2, 0.22, 0.28);
+const GRIS = rgb(0.42, 0.45, 0.52);
+const FONDO = rgb(0.995, 0.992, 0.984);
 
-function centrado(page: PDFPage, texto: string, y: number, font: PDFFont, size: number, color = rgb(0.1, 0.1, 0.15)) {
-  const w = font.widthOfTextAtSize(texto, size);
-  page.drawText(texto, { x: (page.getWidth() - w) / 2, y, size, font, color });
+/** Quita caracteres que las fuentes estándar del PDF no pueden dibujar (emojis, etc.). */
+function limpiar(font: PDFFont, texto: string) {
+  let r = "";
+  for (const ch of texto.replace(/\s+/g, " ")) {
+    try {
+      font.encodeText(ch);
+      r += ch;
+    } catch {
+      /* se omite */
+    }
+  }
+  return r.trim();
 }
 
-async function cargarFirma(doc: PDFDocument, ruta: string | null): Promise<PDFImage | null> {
+/** Ancho de un texto con espaciado entre letras. */
+function anchoEspaciado(font: PDFFont, texto: string, size: number, espacio: number) {
+  return font.widthOfTextAtSize(texto, size) + espacio * Math.max(texto.length - 1, 0);
+}
+
+function centrado(page: PDFPage, texto: string, y: number, font: PDFFont, size: number, color = TEXTO, espacio = 0) {
+  const t = limpiar(font, texto);
+  const w = anchoEspaciado(font, t, size, espacio);
+  if (!espacio) return page.drawText(t, { x: (page.getWidth() - w) / 2, y, size, font, color });
+  let x = (page.getWidth() - w) / 2;
+  for (const ch of t) {
+    page.drawText(ch, { x, y, size, font, color });
+    x += font.widthOfTextAtSize(ch, size) + espacio;
+  }
+}
+
+/** Parte un texto en líneas que quepan en `max` puntos. */
+function lineas(font: PDFFont, texto: string, size: number, max: number) {
+  const out: string[] = [];
+  let actual = "";
+  for (const palabra of limpiar(font, texto).split(" ")) {
+    const prueba = actual ? `${actual} ${palabra}` : palabra;
+    if (font.widthOfTextAtSize(prueba, size) > max && actual) {
+      out.push(actual);
+      actual = palabra;
+    } else actual = prueba;
+  }
+  if (actual) out.push(actual);
+  return out;
+}
+
+/** Reduce el tamaño hasta que el texto quepa en una línea. */
+function tamanoQueCabe(font: PDFFont, texto: string, size: number, max: number, min = 12) {
+  let s = size;
+  while (s > min && font.widthOfTextAtSize(texto, s) > max) s -= 1;
+  return s;
+}
+
+async function cargarImagen(doc: PDFDocument, bytes: Uint8Array | null): Promise<PDFImage | null> {
+  if (!bytes) return null;
+  try {
+    const b = Buffer.from(bytes);
+    return tipoReal(b) === "image/png" ? await doc.embedPng(b) : await doc.embedJpg(b);
+  } catch {
+    return null; // imagen faltante o formato inválido: se omite
+  }
+}
+
+async function leerSeguro(ruta: string | null) {
   if (!ruta) return null;
   try {
-    return await doc.embedPng(await leerArchivo(ruta));
+    return await leerArchivo(ruta);
   } catch {
-    return null; // firma faltante o formato inválido: se deja solo la línea
+    return null;
   }
+}
+
+/** Logo de la plantilla o, si no hay, el de la iglesia en /public. */
+async function bytesLogo(ruta: string | null) {
+  const subido = await leerSeguro(ruta);
+  if (subido) return subido;
+  try {
+    return await readFile(path.join(process.cwd(), "public", "images", "logo.jpg"));
+  } catch {
+    return null;
+  }
+}
+
+function dibujarImagen(page: PDFPage, img: PDFImage, cx: number, yBase: number, maxW: number, maxH: number, opacity = 1) {
+  const escala = Math.min(maxW / img.width, maxH / img.height);
+  page.drawImage(img, { x: cx - (img.width * escala) / 2, y: yBase, width: img.width * escala, height: img.height * escala, opacity });
 }
 
 export async function generarPdfCertificado(d: DatosPdf) {
+  const p = d.plantilla;
   const doc = await PDFDocument.create();
+  doc.setTitle(`Certificado ${d.codigo}`);
   const page = doc.addPage([842, 595]); // A4 horizontal
   const serif = await doc.embedFont(StandardFonts.TimesRoman);
   const serifBold = await doc.embedFont(StandardFonts.TimesRomanBold);
-  const serifItalic = await doc.embedFont(StandardFonts.TimesRomanBoldItalic);
-  const sans = await doc.embedFont(StandardFonts.Helvetica);
+  const serifItalic = await doc.embedFont(StandardFonts.TimesRomanItalic);
+  const serifBoldItalic = await doc.embedFont(StandardFonts.TimesRomanBoldItalic);
   const { width, height } = page.getSize();
+  const cx = width / 2;
 
-  page.drawRectangle({ x: 24, y: 24, width: width - 48, height: height - 48, borderColor: VIOLETA, borderWidth: 4 });
-  page.drawRectangle({ x: 34, y: 34, width: width - 68, height: height - 68, borderColor: VIOLETA, borderWidth: 1 });
+  // Fondo, doble marco (azul y dorado) y esquinas doradas
+  page.drawRectangle({ x: 0, y: 0, width, height, color: FONDO });
+  page.drawRectangle({ x: 18, y: 18, width: width - 36, height: height - 36, borderColor: AZUL, borderWidth: 3.5 });
+  page.drawRectangle({ x: 27, y: 27, width: width - 54, height: height - 54, borderColor: DORADO, borderWidth: 0.8 });
+  const esquina = (x: number, y: number, dx: number, dy: number) => {
+    page.drawLine({ start: { x, y }, end: { x: x + 34 * dx, y }, thickness: 2.5, color: DORADO });
+    page.drawLine({ start: { x, y }, end: { x, y: y + 34 * dy }, thickness: 2.5, color: DORADO });
+  };
+  esquina(36, height - 36, 1, -1);
+  esquina(width - 36, height - 36, -1, -1);
+  esquina(36, 36, 1, 1);
+  esquina(width - 36, 36, -1, 1);
 
-  centrado(page, "CERTIFICADO", height - 120, serifBold, 40, VIOLETA);
-  centrado(page, NOMBRE_IGLESIA.toUpperCase(), height - 148, sans, 12, GRIS);
-  centrado(page, "Se certifica que", height - 205, serif, 16);
-  centrado(page, d.estudiante, height - 250, serifItalic, 32, VIOLETA);
-  page.drawLine({
-    start: { x: width / 2 - 200, y: height - 262 },
-    end: { x: width / 2 + 200, y: height - 262 },
-    thickness: 1,
-    color: VIOLETA,
-  });
-  centrado(page, "completó satisfactoriamente el curso", height - 295, serif, 16);
-  centrado(page, d.curso, height - 330, serifBold, 22);
-  centrado(page, `Fecha: ${fecha(d.fecha)}`, height - 360, serif, 13, GRIS);
+  // Encabezado: logo, institución y subtítulo
+  const logo = await cargarImagen(doc, await bytesLogo(p.logoPath));
+  if (logo) dibujarImagen(page, logo, cx, height - 92, 120, 48);
+  const inst = p.institucion.toUpperCase();
+  centrado(page, inst, height - 112, serifBold, tamanoQueCabe(serifBold, inst, 15, 620, 10), AZUL, 2.2);
+  centrado(page, p.subtitulo.toUpperCase(), height - 127, serifItalic, 8.5, GRIS, 1.2);
 
-  const colW = (width - 160) / d.firmas.length;
-  for (let i = 0; i < d.firmas.length; i++) {
-    const f = d.firmas[i];
-    const cx = 80 + colW * i + colW / 2;
-    const lineaY = 110;
-    const img = await cargarFirma(doc, f.firmaPath);
-    if (img) {
-      const escala = Math.min(140 / img.width, 55 / img.height);
-      page.drawImage(img, {
-        x: cx - (img.width * escala) / 2,
-        y: lineaY + 4,
-        width: img.width * escala,
-        height: img.height * escala,
-      });
+  // Título con separador dorado y rombo
+  const titulo = p.titulo.toUpperCase();
+  centrado(page, titulo, height - 172, serif, tamanoQueCabe(serif, titulo, 30, 640, 18), DORADO, 3.5);
+  const yDiv = height - 188;
+  page.drawLine({ start: { x: cx - 175, y: yDiv }, end: { x: cx - 10, y: yDiv }, thickness: 1, color: DORADO });
+  page.drawLine({ start: { x: cx + 10, y: yDiv }, end: { x: cx + 175, y: yDiv }, thickness: 1, color: DORADO });
+  page.drawSvgPath("M 0 -4.5 L 4.5 0 L 0 4.5 L -4.5 0 Z", { x: cx, y: yDiv, color: DORADO });
+
+  // Texto introductorio, nombre del estudiante y curso
+  let y = height - 232;
+  for (const l of lineas(serifItalic, p.textoIntro, 11.5, 640)) {
+    centrado(page, l, y, serifItalic, 11.5, GRIS);
+    y -= 15;
+  }
+  y -= 22;
+  const nombre = limpiar(serifBold, d.estudiante);
+  const tamNombre = tamanoQueCabe(serifBold, nombre, 28, 560, 16);
+  centrado(page, nombre, y, serifBold, tamNombre, AZUL);
+  const anchoNombre = serifBold.widthOfTextAtSize(nombre, tamNombre);
+  page.drawLine({ start: { x: cx - anchoNombre / 2 - 20, y: y - 9 }, end: { x: cx + anchoNombre / 2 + 20, y: y - 9 }, thickness: 1.2, color: DORADO });
+  y -= 32;
+  for (const l of lineas(serif, p.textoPrograma, 11, 680)) {
+    centrado(page, l, y, serif, 11, TEXTO);
+    y -= 14;
+  }
+  y -= 8;
+  const curso = limpiar(serifBold, d.curso);
+  centrado(page, curso, y, serifBold, tamanoQueCabe(serifBold, curso, 16, 620, 11), VINO);
+
+  // Versículo en recuadro con barra dorada
+  if (p.versiculo) {
+    const textoV = lineas(serifItalic, `"${p.versiculo}"`, 9.5, 500);
+    const alto = textoV.length * 12 + 26;
+    const top = y - 16;
+    page.drawRectangle({ x: cx - 270, y: top - alto, width: 540, height: alto, color: DORADO_CLARO });
+    page.drawRectangle({ x: cx - 270, y: top - alto, width: 2.5, height: alto, color: DORADO });
+    let yv = top - 14;
+    for (const l of textoV) {
+      centrado(page, l, yv, serifItalic, 9.5, GRIS);
+      yv -= 12;
     }
-    page.drawLine({ start: { x: cx - 80, y: lineaY }, end: { x: cx + 80, y: lineaY }, thickness: 0.8 });
-    const nombreW = serif.widthOfTextAtSize(f.nombre, 11);
-    page.drawText(f.nombre, { x: cx - nombreW / 2, y: lineaY - 16, size: 11, font: serif });
-    const rolW = sans.widthOfTextAtSize(f.rol, 9);
-    page.drawText(f.rol, { x: cx - rolW / 2, y: lineaY - 30, size: 9, font: sans, color: GRIS });
+    centrado(page, `— ${p.versiculoCita}`, yv - 1, serifBoldItalic, 9.5, TEXTO);
   }
 
-  const codigo = `N.° ${d.codigo}`;
-  page.drawText(codigo, { x: width - 60 - sans.widthOfTextAtSize(codigo, 8), y: 44, size: 8, font: sans, color: GRIS });
+  // Firmas: profesor, supervisor y pastor
+  const lineaY = 112;
+  const columnas = [width * 0.2, width * 0.5, width * 0.8];
+  const sello = await cargarImagen(doc, await leerSeguro(p.selloPath));
+  for (let i = 0; i < d.firmas.length && i < columnas.length; i++) {
+    const f = d.firmas[i];
+    const x = columnas[i];
+    const img = await cargarImagen(doc, await leerSeguro(f.firmaPath));
+    if (img) dibujarImagen(page, img, x, lineaY + 3, 150, 44);
+    page.drawLine({ start: { x: x - 80, y: lineaY }, end: { x: x + 80, y: lineaY }, thickness: 0.8, color: AZUL });
+    const n = limpiar(serifBold, f.nombre);
+    const tn = tamanoQueCabe(serifBold, n, 11, 170, 8);
+    page.drawText(n, { x: x - serifBold.widthOfTextAtSize(n, tn) / 2, y: lineaY - 14, size: tn, font: serifBold, color: AZUL });
+    const r = limpiar(serif, f.rol);
+    page.drawText(r, { x: x - serif.widthOfTextAtSize(r, 9) / 2, y: lineaY - 26, size: 9, font: serif, color: GRIS });
+  }
+  // El sello va entre la firma del supervisor y la del pastor
+  if (sello) dibujarImagen(page, sello, (columnas[1] + columnas[2]) / 2, lineaY - 32, 68, 68, 0.92);
+
+  // Pie: fecha, lugar y código
+  const pie = (etiqueta: string, valor: string, x: number, alinear: "izq" | "centro" | "der") => {
+    const e = `${etiqueta}: `;
+    const v = limpiar(serif, valor);
+    const w = serifBold.widthOfTextAtSize(e, 8.5) + serif.widthOfTextAtSize(v, 8.5);
+    const x0 = alinear === "izq" ? x : alinear === "der" ? x - w : x - w / 2;
+    page.drawText(e, { x: x0, y: 48, size: 8.5, font: serifBold, color: GRIS });
+    page.drawText(v, { x: x0 + serifBold.widthOfTextAtSize(e, 8.5), y: 48, size: 8.5, font: serif, color: GRIS });
+  };
+  const fechaLarga = d.fecha.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric", timeZone: "America/Bogota" });
+  pie("Fecha de emisión", fechaLarga, 80, "izq");
+  pie("Lugar", p.lugar, cx, "centro");
+  pie("Código de registro", d.codigo, width - 80, "der");
 
   return doc.save();
 }

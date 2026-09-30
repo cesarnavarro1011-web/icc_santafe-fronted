@@ -119,6 +119,14 @@ aplicación (límite aprox. 500 destinatarios al día).
   Sin token, en desarrollo el pago se simula con un botón; en producción queda deshabilitado.
 - Los cursos gratuitos siguen con la solicitud que aprueba el pastor.
 
+## Plantilla del certificado
+
+Menú **Académico → Plantilla de certificado** (pastor y superadmin), o el botón en Certificados. Se editan el logo, el
+sello, la institución, el subtítulo, el título, los textos, el versículo (se puede ocultar), el lugar y el cargo que va
+debajo de cada firma (profesor, supervisor y pastor), con vista previa del PDF al guardar. Lo que se deja vacío usa el
+texto por defecto. El PDF se genera solo con la firma final del pastor, con los nombres y las firmas digitales (Perfil)
+de quienes aprobaron. Los certificados ya emitidos conservan el diseño con el que se generaron.
+
 ## Página web pública
 
 La portada (`/`) y las páginas de ministerios leen su contenido de la base de datos. Se administra en

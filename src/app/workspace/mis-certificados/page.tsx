@@ -58,7 +58,7 @@ export default async function MisCertificadosPage() {
                   <Paso label="Firma del maestro" at={c.firmaMaestroAt} />
                   <Paso label="Firma del supervisor" at={c.firmaSupervisorAt} />
                   <Paso label="Firma del pastor" at={c.firmaPastorAt} />
-                  {c.pdfPath ? (
+                  {c.pdfPath || (c.estado === "EMITIDO" && !c.linkExterno) ? (
                     <Button asChild className="mt-2 w-full">
                       <a href={`/api/archivos/certificado/${c.id}?descargar`}>
                         <Download /> Descargar PDF

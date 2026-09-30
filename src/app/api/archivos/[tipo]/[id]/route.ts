@@ -5,6 +5,7 @@ import { R, tieneRol } from "@/lib/roles";
 import { getSessionUser, type UsuarioSesion } from "@/lib/server/session";
 import { leerArchivo, MIME_POR_EXT } from "@/lib/server/storage";
 import { cursosEnAlcance } from "@/server/academico";
+import { generarPdfDeCertificado } from "@/server/certificados";
 
 // Sirve archivos del disco local verificando permisos (reemplaza los links públicos de Drive).
 //   /api/archivos/entrega/<id>      PDF de tarea: el estudiante o el staff del curso
@@ -14,6 +15,7 @@ import { cursosEnAlcance } from "@/server/academico";
 //   /api/archivos/firma/<usuarioId> firma digital: el dueño o admin
 //   /api/archivos/portada/<cursoId> imagen del curso: cualquier usuario con sesión
 //   /api/archivos/comunicado/<comunicadoId>~<n>  imagen n de un comunicado: quien gestiona comunicados
+//   /api/archivos/plantilla-cert/logo|sello      imágenes de la plantilla de certificado: pastor y superadmin
 
 async function staffDelCurso(user: UsuarioSesion, cursoId: string) {
   if (!tieneRol(user.rol, R.ACADEMICO)) return false;
@@ -23,6 +25,12 @@ async function staffDelCurso(user: UsuarioSesion, cursoId: string) {
 
 async function resolver(tipo: string, id: string, user: UsuarioSesion) {
   switch (tipo) {
+    case "plantilla-cert": {
+      if (!tieneRol(user.rol, R.ADMIN)) return "denegado";
+      const p = await prisma.plantillaCertificado.findUnique({ where: { id: "principal" } });
+      const ruta = id === "logo" ? p?.logoPath : id === "sello" ? p?.selloPath : null;
+      return ruta ? { ruta, nombre: path.basename(ruta) } : null;
+    }
     case "comunicado": {
       if (!tieneRol(user.rol, R.COMUNICADOS)) return "denegado";
       const [comunicadoId, n] = id.split("~");
@@ -45,9 +53,12 @@ async function resolver(tipo: string, id: string, user: UsuarioSesion) {
     }
     case "certificado": {
       const c = await prisma.certificado.findUnique({ where: { id } });
-      if (!c?.pdfPath) return null;
+      if (!c || (!c.pdfPath && c.estado !== "EMITIDO")) return null;
       const ok = c.fielId === user.fielId || (await staffDelCurso(user, c.cursoId));
-      return ok ? { ruta: c.pdfPath, nombre: `Certificado_${c.codigo}.pdf` } : "denegado";
+      if (!ok) return "denegado";
+      // Emitido sin PDF (datos migrados o de prueba): se genera ahora con la plantilla actual
+      const ruta = c.pdfPath ?? (await generarPdfDeCertificado(c.id)).ruta;
+      return { ruta, nombre: `Certificado_${c.codigo}.pdf` };
     }
     case "comprobante": {
       const i = await prisma.inscripcion.findUnique({ where: { id } });

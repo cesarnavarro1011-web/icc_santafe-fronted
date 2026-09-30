@@ -1,5 +1,6 @@
 import type { EstadoCertificado, Prisma } from "@prisma/client";
-import { Award, Ban, CheckCircle, Clock, Download, ExternalLink, Signature } from "lucide-react";
+import { Award, Ban, CheckCircle, Clock, Download, ExternalLink, Eye, RefreshCw, ScrollText, Signature } from "lucide-react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,7 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { R, tieneRol } from "@/lib/roles";
 import { requirePage } from "@/lib/server/session";
 import { asistenciaEstudiante, cursosEnAlcance, filtroCurso } from "@/server/academico";
-import { anular } from "./actions";
+import { anular, regenerarPdf } from "./actions";
 import { RevisionFirma, type DatosRevision } from "./revision-firma";
 
 function Check({ at }: { at: Date | null }) {
@@ -79,7 +80,19 @@ export default async function CertificadosPage({ searchParams }: { searchParams:
 
   return (
     <>
-      <PageHeader title="Certificados" description="Flujo de firmas: Maestro → Supervisor → Pastor. Con la firma del pastor se genera el PDF." />
+      <PageHeader
+        title="Certificados"
+        description="Flujo de firmas: Maestro → Supervisor → Pastor. Con la firma del pastor se genera el PDF."
+        actions={
+          esAdmin && (
+            <Button variant="outline" asChild>
+              <Link href="/workspace/certificados/plantilla">
+                <ScrollText /> Plantilla del certificado
+              </Link>
+            </Button>
+          )
+        }
+      />
       <div className="grid gap-4 sm:grid-cols-3">
         <KpiCard icon={CheckCircle} label="Emitidos" value={emitidos} color="green" />
         <KpiCard icon={Clock} label="Esperan al supervisor" value={pendSupervisor} color="amber" />
@@ -136,12 +149,32 @@ export default async function CertificadosPage({ searchParams }: { searchParams:
                         {enFirma && esAdmin && c.firmaSupervisorAt && !c.firmaPastorAt && revision.get(c.id) && (
                           <RevisionFirma c={revision.get(c.id)!} como="PASTOR" tieneFirma={tieneFirma} />
                         )}
-                        {c.pdfPath && (
-                          <Button size="icon-sm" variant="outline" asChild aria-label="Descargar">
-                            <a href={`/api/archivos/certificado/${c.id}`} target="_blank" rel="noreferrer">
-                              <Download />
-                            </a>
-                          </Button>
+                        {(c.pdfPath || (c.estado === "EMITIDO" && !c.linkExterno)) && (
+                          <>
+                            <Button size="sm" variant="outline" asChild>
+                              <a href={`/api/archivos/certificado/${c.id}`} target="_blank" rel="noreferrer">
+                                <Eye /> Ver
+                              </a>
+                            </Button>
+                            <Button size="icon-sm" variant="outline" asChild aria-label="Descargar" title="Descargar">
+                              <a href={`/api/archivos/certificado/${c.id}?descargar`}>
+                                <Download />
+                              </a>
+                            </Button>
+                            {esAdmin && (
+                              <ActionButton
+                                size="icon-sm"
+                                variant="ghost"
+                                aria-label="Regenerar PDF"
+                                title="Regenerar con la plantilla actual"
+                                confirm="¿Regenerar el PDF con la plantilla actual? Se reemplaza el archivo anterior (no se envía correo)."
+                                successMessage="PDF regenerado con la plantilla actual"
+                                action={regenerarPdf.bind(null, c.id)}
+                              >
+                                <RefreshCw />
+                              </ActionButton>
+                            )}
+                          </>
                         )}
                         {!c.pdfPath && c.linkExterno && (
                           <Button size="icon-sm" variant="outline" asChild aria-label="Ver en Drive">

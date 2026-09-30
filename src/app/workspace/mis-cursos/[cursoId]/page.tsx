@@ -333,7 +333,7 @@ export default async function CursoEstudiantePage({
             </p>
           </div>
           <Panel title="Certificado">
-            {certificado?.pdfPath ? (
+            {certificado?.pdfPath || (certificado?.estado === "EMITIDO" && !certificado.linkExterno) ? (
               <Button asChild>
                 <a href={`/api/archivos/certificado/${certificado.id}?descargar`}>
                   <Download /> Descargar certificado
