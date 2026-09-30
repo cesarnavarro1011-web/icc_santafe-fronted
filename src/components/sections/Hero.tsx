@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
-import type { SlidePublica } from '@/server/contenido';
+import { CalendarClock, ChevronLeft, ChevronRight, Pause, Play, Radio } from 'lucide-react';
+import type { EnVivoPublico, SlidePublica } from '@/server/contenido';
 
 // Se muestra si el gestor de contenido aún no ha publicado diapositivas
 const BIENVENIDA: SlidePublica = {
@@ -19,7 +19,8 @@ const BIENVENIDA: SlidePublica = {
 
 const INTERVALO = 6000;
 
-export default function Hero({ slides }: { slides: SlidePublica[] }) {
+export default function Hero({ slides, envivo }: { slides: SlidePublica[]; envivo?: EnVivoPublico }) {
+  const alAire = !!envivo?.alAire;
   const lista = slides.length ? slides : [BIENVENIDA];
   const [actual, setActual] = useState(0);
   const [pausado, setPausado] = useState(false);
@@ -89,6 +90,28 @@ export default function Hero({ slides }: { slides: SlidePublica[] }) {
         </motion.div>
       </AnimatePresence>
 
+      {/* Estado de la transmisión (no cambia con las diapositivas) */}
+      {alAire ? (
+        <a
+          href="#en-vivo"
+          className="absolute top-24 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2.5 rounded-full bg-red-600 py-1.5 pr-4 pl-3 text-sm font-semibold whitespace-nowrap text-white shadow-lg shadow-red-900/40 transition hover:bg-red-500 md:top-28"
+        >
+          <span className="relative flex size-2.5">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-white opacity-75" />
+            <span className="relative inline-flex size-2.5 rounded-full bg-white" />
+          </span>
+          <span className="tracking-widest uppercase">En vivo</span>
+          <span className="hidden max-w-56 truncate font-normal text-white/90 sm:inline">· {envivo?.titulo}</span>
+        </a>
+      ) : (
+        envivo?.proxima && (
+          <div className="absolute top-24 left-1/2 z-20 flex max-w-[90vw] -translate-x-1/2 items-center gap-2 rounded-full border border-white/20 bg-black/40 px-4 py-1.5 text-xs text-white/90 backdrop-blur-sm md:top-28 md:text-sm">
+            <CalendarClock className="size-4 shrink-0 text-[#f5cc00]" />
+            <span className="truncate">Transmisión en vivo: {envivo.proxima}</span>
+          </div>
+        )
+      )}
+
       <div className="relative z-10 mx-auto max-w-4xl px-4 text-center text-white">
         <AnimatePresence mode="wait">
           <motion.div
@@ -102,6 +125,14 @@ export default function Hero({ slides }: { slides: SlidePublica[] }) {
             <h1 className="mb-6 text-4xl leading-tight font-bold md:text-6xl">{s.titulo}</h1>
             {s.descripcion && <p className="mx-auto mb-8 max-w-2xl text-lg text-gray-200 md:text-2xl">{s.descripcion}</p>}
             <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+              {alAire && (
+                <a
+                  href="#en-vivo"
+                  className="flex items-center gap-2 rounded-full bg-red-600 px-8 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:-translate-y-1 hover:bg-red-500 hover:shadow-xl"
+                >
+                  <Radio className="size-5" /> Ver en vivo
+                </a>
+              )}
               {s.ctaTexto && s.ctaLink && (
                 <Link
                   href={s.ctaLink}

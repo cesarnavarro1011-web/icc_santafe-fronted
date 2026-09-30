@@ -370,6 +370,7 @@ async function crear() {
   }
 
   // Certificados: uno espera al supervisor, otro al pastor, otro ya emitido (sin PDF)
+  const pastor = await prisma.usuario.findFirst({ where: { rol: "PASTOR", activo: true }, select: { fielId: true } });
   for (const [i, x] of certificables.slice(0, 3).entries()) {
     const plan = planes.find((p) => p.codigo === x.codigo)!;
     await prisma.certificado.create({
@@ -381,7 +382,7 @@ async function crear() {
         firmaMaestroId: fiel[plan.maestro].id,
         firmaMaestroAt: haceDias(6),
         ...(i >= 1 ? { firmaSupervisorId: fiel["demo.supervisor"].id, firmaSupervisorAt: haceDias(4) } : {}),
-        ...(i === 2 ? { firmaPastorAt: haceDias(1), estado: "EMITIDO" as const, emitidoAt: haceDias(1) } : {}),
+        ...(i === 2 ? { firmaPastorId: pastor?.fielId ?? null, firmaPastorAt: haceDias(1), estado: "EMITIDO" as const, emitidoAt: haceDias(1) } : {}),
       },
     });
   }

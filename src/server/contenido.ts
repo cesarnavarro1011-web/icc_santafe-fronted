@@ -85,6 +85,41 @@ export function idVimeo(url: string) {
   return url.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1] ?? null;
 }
 
+/**
+ * Reproductor embebido para una transmisión en vivo.
+ * Acepta: video o live de YouTube (watch?v=, youtu.be, /live/ID), canal de YouTube
+ * (/channel/UC…/live: muestra lo que esté al aire), video de Facebook y Vimeo.
+ */
+export function embedEnVivo(url: string) {
+  const yt = idYoutube(url);
+  if (yt) return { plataforma: "YouTube", embed: `https://www.youtube-nocookie.com/embed/${yt}?autoplay=1&mute=1&rel=0` };
+  const canal = url.match(/youtube\.com\/channel\/(UC[\w-]{22})/)?.[1];
+  if (canal) return { plataforma: "YouTube", embed: `https://www.youtube.com/embed/live_stream?channel=${canal}&autoplay=1&mute=1` };
+  if (/(facebook\.com|fb\.watch)\//.test(url))
+    return { plataforma: "Facebook", embed: `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=false&autoplay=true&mute=true` };
+  const vimeo = idVimeo(url);
+  if (vimeo) return { plataforma: "Vimeo", embed: `https://player.vimeo.com/video/${vimeo}?autoplay=1&muted=1` };
+  return null;
+}
+
+/** Transmisión al aire (activa, con enlace válido y sin pasar su hora de fin) o null. */
+export async function envivoPublico() {
+  const s = await obtenerSitio();
+  const alAire = s.envivoActivo && !!s.envivoUrl && (!s.envivoHasta || s.envivoHasta > new Date());
+  const reproductor = alAire && s.envivoUrl ? embedEnVivo(s.envivoUrl) : null;
+  return {
+    alAire: !!reproductor,
+    titulo: s.envivoTitulo || "Servicio en vivo",
+    descripcion: s.envivoDescripcion,
+    url: s.envivoUrl,
+    embed: reproductor?.embed ?? null,
+    plataforma: reproductor?.plataforma ?? null,
+    proxima: s.envivoProxima,
+  };
+}
+
+export type EnVivoPublico = Awaited<ReturnType<typeof envivoPublico>>;
+
 export async function predicasPublicas() {
   const predicas = await prisma.webPredica.findMany({ where: { estado: "PUBLICADO" }, orderBy: { fecha: "desc" }, take: 60 });
   return predicas.map((p) => {

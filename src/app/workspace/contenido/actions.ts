@@ -11,7 +11,7 @@ import { ErrorNegocio } from "@/lib/server/errors";
 import { formObj, zBool, zTexto, zTextoOpc } from "@/lib/server/form";
 import { requireUser } from "@/lib/server/session";
 import { borrarArchivo, guardarArchivo, leerUpload } from "@/lib/server/storage";
-import { idVimeo, idYoutube, obtenerSitio } from "@/server/contenido";
+import { embedEnVivo, idVimeo, idYoutube, obtenerSitio } from "@/server/contenido";
 
 // ── Utilidades ───────────────────────────────────────────────
 
@@ -501,6 +501,51 @@ export async function actualizarPeticion(id: string, estado: EstadoPeticion, fd?
     const nota = fd ? String(fd.get("nota") ?? "").trim() || null : undefined;
     await prisma.peticionOracion.update({ where: { id }, data: { estado, ...(nota !== undefined ? { nota } : {}) } });
     revalidatePath("/workspace/contenido/peticiones");
+    return null;
+  });
+}
+
+// ── Transmisión en vivo ──────────────────────────────────────
+
+/** "2026-09-30T12:00" (hora Colombia, sin zona) → Date. No depende de la zona horaria del servidor. */
+function horaColombia(v: string | null | undefined) {
+  if (!v) return null;
+  const d = new Date(`${v.length === 16 ? `${v}:00` : v}-05:00`);
+  if (Number.isNaN(d.getTime())) throw new ErrorNegocio("Hora de fin inválida.");
+  return d;
+}
+
+const envivoSchema = z.object({
+  envivoUrl: zTextoOpc,
+  envivoTitulo: zTextoOpc,
+  envivoDescripcion: zTextoOpc,
+  envivoProxima: zTextoOpc,
+  envivoHasta: zTextoOpc,
+});
+
+export async function guardarEnVivo(fd: FormData) {
+  return runAction(async () => {
+    await requireUser(R.CONTENIDO);
+    const d = envivoSchema.parse(formObj(fd));
+    if (d.envivoUrl && !embedEnVivo(d.envivoUrl))
+      throw new ErrorNegocio("El enlace no es de un video de YouTube, Facebook o Vimeo. Copia el enlace de la transmisión desde el navegador.");
+    const hasta = horaColombia(d.envivoHasta);
+    if (hasta && hasta <= new Date()) throw new ErrorNegocio("La hora de fin ya pasó. Déjala vacía o pon una hora futura.");
+    await prisma.webSitio.update({ where: { id: "principal" }, data: { ...d, envivoHasta: hasta } });
+    refrescarSitio();
+    return null;
+  });
+}
+
+/** Botón "Estamos en vivo" / "Terminar transmisión". */
+export async function cambiarEnVivo(activo: boolean) {
+  return runAction(async () => {
+    await requireUser(R.CONTENIDO);
+    const s = await obtenerSitio();
+    if (activo && !s.envivoUrl) throw new ErrorNegocio("Primero guarda el enlace de la transmisión.");
+    // Al terminar se limpia la hora de fin para que la próxima vez no se apague sola a destiempo
+    await prisma.webSitio.update({ where: { id: "principal" }, data: activo ? { envivoActivo: true } : { envivoActivo: false, envivoHasta: null } });
+    refrescarSitio();
     return null;
   });
 }

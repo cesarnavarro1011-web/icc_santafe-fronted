@@ -116,6 +116,7 @@ export const NAV: NavSection[] = [
       { href: "/workspace/contenido", label: "Resumen del sitio", icon: "globe", roles: R.CONTENIDO },
       { href: "/workspace/contenido/iglesia", label: "Datos de la iglesia", icon: "church", roles: R.CONTENIDO },
       { href: "/workspace/contenido/portada", label: "Portada", icon: "image", roles: R.CONTENIDO },
+      { href: "/workspace/contenido/en-vivo", label: "Transmisión en vivo", icon: "radio", roles: R.CONTENIDO },
       { href: "/workspace/contenido/anuncios", label: "Anuncios", icon: "megaphone", roles: R.CONTENIDO },
       { href: "/workspace/contenido/eventos", label: "Eventos", icon: "calendar-days", roles: R.CONTENIDO },
       { href: "/workspace/contenido/predicas", label: "Prédicas", icon: "video", roles: R.CONTENIDO },

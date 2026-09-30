@@ -813,8 +813,8 @@ model WebMinisterio {
 /// Datos generales de la iglesia para la web (una sola fila, id "principal").
 /// Se muestran en el pie de página, Contáctanos y Nosotros.
 model WebSitio {
-  id                 String   @id @default("principal")
-  nombre             String   @default("Iglesia Cuadrangular Santa Fe")
+  id                 String    @id @default("principal")
+  nombre             String    @default("Iglesia Cuadrangular Santa Fe")
   lema               String?
   descripcion        String? // texto corto del pie de página
   // Contacto
@@ -837,12 +837,19 @@ model WebSitio {
   nosotrosImagenPath String?
   contactoImagenPath String? // fondo del encabezado de Contáctanos
   loginImagenPath    String? // imagen del lado derecho del inicio de sesión
+  // Transmisión en vivo (la maneja el Gestor de contenido)
+  envivoActivo       Boolean   @default(false)
+  envivoUrl          String? // YouTube, Facebook o Vimeo
+  envivoTitulo       String?
+  envivoDescripcion  String?
+  envivoHasta        DateTime? // se apaga sola a esta hora (por si olvidan terminarla)
+  envivoProxima      String? // texto cuando no hay transmisión, ej. "Domingos 10:00 a. m."
   mision             String?
   vision             String?
   valores            String? // uno por línea
   /// [{ valor: "300+", etiqueta: "Miembros activos" }]
-  estadisticas       Json     @default("[]")
-  updatedAt          DateTime @updatedAt
+  estadisticas       Json      @default("[]")
+  updatedAt          DateTime  @updatedAt
 }
 
 /// Etapas de "Nuestra historia" (Nosotros)
