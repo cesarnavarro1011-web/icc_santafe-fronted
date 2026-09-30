@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { enmascararCorreo, enviarCorreo, plantillaCorreo } from "@/lib/server/mail";
 import { codigoOtp } from "@/lib/server/password";
 import { minutosBloqueo, registrarIntento } from "@/lib/server/rate-limit";
-import { enmascararCelular, enviarCodigoWhatsApp } from "@/lib/server/whatsapp";
+import { enmascararCelular, enviarCodigoWhatsApp, whatsappConfigurado } from "@/lib/server/whatsapp";
 
 // ============================================================
 //  Verificación en dos pasos "de vez en cuando":
@@ -53,7 +53,7 @@ export async function enviarCodigoLogin(usuario: { id: string; fiel: { nombre: s
   ]);
 
   const { celular, correo } = usuario.fiel;
-  if (celular && (await enviarCodigoWhatsApp(celular, codigo))) {
+  if (celular && whatsappConfigurado() && (await enviarCodigoWhatsApp(celular, codigo))) {
     registrarIntento(clave, REGLA_ENVIOS);
     return { canal: "WhatsApp", destino: enmascararCelular(celular) };
   }

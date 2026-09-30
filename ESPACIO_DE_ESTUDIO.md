@@ -100,6 +100,11 @@ página muestra el avance, los fallidos y permite reintentarlos. Los correos lle
 recibir más comunicados"; quien se da de baja sigue recibiendo los avisos de sus cursos, pagos y contraseña.
 En WhatsApp se usa la plantilla `WHATSAPP_PLANTILLA_INFO` (solo texto, sin imágenes).
 
+**WhatsApp es opcional (la API de Meta cobra por mensaje).** Mientras `WHATSAPP_TOKEN` esté vacío, WhatsApp
+no aparece en ninguna pantalla: la recuperación de contraseña y la verificación en dos pasos van por correo y
+los comunicados solo se envían por correo. Para correo gratis basta una cuenta de Gmail con contraseña de
+aplicación (límite aprox. 500 destinatarios al día).
+
 ## Pagos en línea (Mercado Pago) y códigos de promoción
 
 - El estudiante pulsa **Quiero este curso** en un curso de pago → `/workspace/pagar/<curso>`: ve el precio,

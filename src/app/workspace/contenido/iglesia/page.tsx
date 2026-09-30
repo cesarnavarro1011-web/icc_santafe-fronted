@@ -1,5 +1,30 @@
 import type { WebHistoria, WebPersona } from "@prisma/client";
-import { ExternalLink, History, Pencil, Plus, UserRound } from "lucide-react";
+import {
+  CircleAlert,
+  Clock,
+  ExternalLink,
+  Eye,
+  Facebook,
+  Heart,
+  History,
+  Instagram,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Music2,
+  Navigation,
+  Pencil,
+  Phone,
+  Plus,
+  Share2,
+  Siren,
+  Target,
+  UserRound,
+  Youtube,
+  type LucideIcon,
+} from "lucide-react";
+import Image from "next/image";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -10,7 +35,7 @@ import { EmptyState, Field, PageHeader, Panel } from "@/components/workspace/ui-
 import { prisma } from "@/lib/prisma";
 import { R } from "@/lib/roles";
 import { requirePage } from "@/lib/server/session";
-import { obtenerSitio, urlImagen, type Estadistica } from "@/server/contenido";
+import { obtenerSitio, parsearHorarios, urlImagen, type Estadistica } from "@/server/contenido";
 import { guardarContactoIglesia, guardarHistoria, guardarNosotros, guardarPersona } from "../actions";
 import { AccionesContenido, EstadoPublicacionBadge, ImagenField, PublicacionFields } from "../campos";
 
@@ -65,6 +90,57 @@ function PersonaFields({ p, seccion }: { p?: WebPersona; seccion?: string }) {
   );
 }
 
+function Dato({ icon: Icon, label, valor, color }: { icon: LucideIcon; label: string; valor: string | null; color: string }) {
+  return (
+    <div className="flex items-center gap-3 py-2.5">
+      <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${color}`}>
+        <Icon className="size-4" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-muted-foreground text-xs">{label}</p>
+        {valor ? (
+          <p className="truncate text-sm font-medium">{valor}</p>
+        ) : (
+          <p className="text-muted-foreground/70 text-sm italic">Sin definir · no se muestra</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Tarjeta({ icon: Icon, titulo, accion, children }: { icon: LucideIcon; titulo: string; accion: ReactNode; children: ReactNode }) {
+  return (
+    <Panel
+      title={
+        <span className="flex items-center gap-2">
+          <Icon className="size-4 text-violet-500" /> {titulo}
+        </span>
+      }
+      actions={accion}
+    >
+      {children}
+    </Panel>
+  );
+}
+
+function Seccion({ id, titulo, descripcion }: { id: string; titulo: string; descripcion: string }) {
+  return (
+    <div id={id} className="scroll-mt-24 pt-2">
+      <h2 className="text-lg font-semibold tracking-tight">{titulo}</h2>
+      <p className="text-muted-foreground text-sm">{descripcion}</p>
+    </div>
+  );
+}
+
+const botonEditar = (
+  <Button size="sm" variant="outline">
+    <Pencil /> Editar
+  </Button>
+);
+
+/** Quita "https://www." para mostrar el enlace corto */
+const enlaceCorto = (url: string | null) => (url ? url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "") : null);
+
 export default async function DatosIglesiaPage() {
   await requirePage(R.CONTENIDO);
   const [s, historia, personas] = await Promise.all([
@@ -73,12 +149,43 @@ export default async function DatosIglesiaPage() {
     prisma.webPersona.findMany({ orderBy: [{ orden: "asc" }, { createdAt: "asc" }] }),
   ]);
   const cifras = (Array.isArray(s.estadisticas) ? s.estadisticas : []) as Estadistica[];
+  const horarios = parsearHorarios(s.horarios);
+  const valores = (s.valores ?? "").split("\n").map((v) => v.trim()).filter(Boolean);
+  const imgContacto = s.contactoImagenPath ? urlImagen({ imagenPath: s.contactoImagenPath, updatedAt: s.updatedAt }) : null;
+  const imgNosotros = s.nosotrosImagenPath ? urlImagen({ imagenPath: s.nosotrosImagenPath, updatedAt: s.updatedAt }) : null;
+  const consultaMapa = [s.nombre, s.ciudad].filter(Boolean).join(", ");
+
+  const revisar: [string, unknown][] = [
+    ["Lema", s.lema],
+    ["Teléfono", s.telefono],
+    ["WhatsApp", s.whatsapp],
+    ["Correo", s.correo],
+    ["Dirección", s.direccion],
+    ["Ciudad", s.ciudad],
+    ["Horarios", s.horarios],
+    ["Facebook", s.facebook],
+    ["Instagram", s.instagram],
+    ["YouTube", s.youtube],
+    ["Misión", s.mision],
+    ["Visión", s.vision],
+    ["Valores", s.valores],
+  ];
+  const faltan = revisar.filter(([, v]) => !v).map(([k]) => k);
+  const completos = revisar.length - faltan.length;
+  const avance = completos / revisar.length;
+
+  const redes = [
+    { label: "Facebook", valor: s.facebook, icon: Facebook, color: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300" },
+    { label: "Instagram", valor: s.instagram, icon: Instagram, color: "bg-pink-100 text-pink-700 dark:bg-pink-500/15 dark:text-pink-300" },
+    { label: "YouTube", valor: s.youtube, icon: Youtube, color: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300" },
+    { label: "TikTok", valor: s.tiktok, icon: Music2, color: "bg-zinc-200 text-zinc-800 dark:bg-zinc-500/20 dark:text-zinc-200" },
+  ];
 
   return (
     <>
       <PageHeader
         title="Datos de la iglesia"
-        description="Contacto, horarios, redes y la página Nosotros. Se actualizan en todo el sitio al guardar."
+        description="Lo que ves aquí es lo que aparece en la página web. Edita cada bloque por separado; lo que dejes vacío no se muestra."
         actions={
           <>
             <Button variant="outline" asChild>
@@ -95,112 +202,316 @@ export default async function DatosIglesiaPage() {
         }
       />
 
-      <nav className="flex flex-wrap gap-2 text-sm">
-        {[
-          ["#contacto", "Contacto y horarios"],
-          ["#nosotros", "Nosotros"],
-          ["#historia", "Historia"],
-          ["#personas", "Pastores y equipo"],
-        ].map(([href, label]) => (
-          <a key={href} href={href} className="bg-muted hover:bg-accent rounded-full px-3 py-1">
-            {label}
-          </a>
-        ))}
-      </nav>
+      {/* Identidad: nombre, lema, pie de página e imagen de Contáctanos */}
+      <section className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-violet-700 via-indigo-700 to-blue-700 text-white shadow-sm">
+        {imgContacto && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imgContacto} alt="" className="absolute inset-0 size-full object-cover opacity-25" />
+        )}
+        <div className="relative flex flex-col gap-6 p-6 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-center gap-4">
+            <Image src="/images/logo.jpg" alt="" width={64} height={64} className="size-16 shrink-0 rounded-2xl object-cover ring-2 ring-white/40" />
+            <div className="min-w-0">
+              <p className="text-xs font-medium tracking-widest text-white/70 uppercase">Identidad</p>
+              <h2 className="text-2xl font-bold">{s.nombre}</h2>
+              {s.lema ? <p className="text-white/85 italic">“{s.lema}”</p> : <p className="text-sm text-white/60">Sin lema</p>}
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <svg viewBox="0 0 40 40" className="size-12 -rotate-90" aria-hidden>
+                <circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" strokeWidth="4" className="text-white/20" />
+                <circle
+                  cx="20"
+                  cy="20"
+                  r="17"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  strokeDasharray={`${avance * 106.8} 106.8`}
+                  className="text-white"
+                />
+              </svg>
+              <div className="leading-tight">
+                <p className="text-lg font-bold">
+                  {completos}/{revisar.length}
+                </p>
+                <p className="text-xs text-white/70">datos completos</p>
+              </div>
+            </div>
+            <FormDialog
+              title="Identidad de la iglesia"
+              description="Aparece en el encabezado, el pie de página y Contáctanos."
+              action={guardarContactoIglesia}
+              successMessage="Identidad actualizada"
+              trigger={
+                <Button size="sm" variant="secondary">
+                  <Pencil /> Editar
+                </Button>
+              }
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Nombre de la iglesia *" className="sm:col-span-2">
+                  <Input name="nombre" defaultValue={s.nombre} required />
+                </Field>
+                <Field label="Lema" className="sm:col-span-2">
+                  <Input name="lema" defaultValue={s.lema ?? ""} placeholder="Ej: Creciendo en número y en conocimiento" />
+                </Field>
+                <Field label="Texto del pie de página" className="sm:col-span-2">
+                  <Textarea name="descripcion" rows={3} defaultValue={s.descripcion ?? ""} />
+                </Field>
+                <ImagenField actual={imgContacto} etiqueta="Imagen de fondo de Contáctanos" ayuda="Horizontal (ej. 1920×600). Sin imagen se usa el degradado azul-morado." />
+              </div>
+            </FormDialog>
+          </div>
+        </div>
+        <div className="relative border-t border-white/15 bg-black/10 px-6 py-3 text-sm text-white/80">
+          <span className="font-medium text-white">Pie de página: </span>
+          {s.descripcion || <span className="italic text-white/60">sin texto</span>}
+        </div>
+      </section>
 
-      <Panel title="Contacto, horarios y redes" className="scroll-mt-20">
-        <div id="contacto" className="scroll-mt-24" />
-        <FormInline action={guardarContactoIglesia} successMessage="Datos de contacto actualizados en todo el sitio">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Nombre de la iglesia *">
-              <Input name="nombre" defaultValue={s.nombre} required />
-            </Field>
-            <Field label="Lema">
-              <Input name="lema" defaultValue={s.lema ?? ""} placeholder="Ej: Creciendo en número y en conocimiento" />
-            </Field>
-            <Field label="Texto del pie de página" className="sm:col-span-2">
-              <Textarea name="descripcion" rows={2} defaultValue={s.descripcion ?? ""} />
-            </Field>
-            <Field label="Teléfono">
-              <Input name="telefono" type="tel" defaultValue={s.telefono ?? ""} placeholder="Ej: 301 483 9591" />
-            </Field>
-            <Field label="WhatsApp">
-              <Input name="whatsapp" type="tel" defaultValue={s.whatsapp ?? ""} placeholder="Ej: 301 483 9591 (el botón abre el chat)" />
-            </Field>
-            <Field label="Correo">
-              <Input name="correo" type="email" defaultValue={s.correo ?? ""} placeholder="Ej: contacto@iccsantafe.com" />
-            </Field>
-            <Field label="Teléfono de emergencias pastorales">
-              <Input name="emergencias" type="tel" defaultValue={s.emergencias ?? ""} placeholder="Vacío = no se muestra" />
-            </Field>
-            <Field label="Dirección">
-              <Input name="direccion" defaultValue={s.direccion ?? ""} placeholder="Ej: Carrera 43 #16-05 Barrio Santa Fe" />
-            </Field>
-            <Field label="Ciudad">
-              <Input name="ciudad" defaultValue={s.ciudad ?? ""} placeholder="Ej: Barranquilla, Atlántico" />
-            </Field>
-            <Field label="Enlace de Google Maps" className="sm:col-span-2">
-              <Input name="mapaUrl" defaultValue={s.mapaUrl ?? ""} placeholder="https://maps.app.goo.gl/… (botón “Cómo llegar”)" />
-            </Field>
-            <ImagenField
-              actual={s.contactoImagenPath ? urlImagen({ imagenPath: s.contactoImagenPath, updatedAt: s.updatedAt }) : null}
-              etiqueta="Imagen de fondo de Contáctanos"
-              ayuda="Horizontal (ej. 1920×600). Sin imagen se usa el degradado azul-morado."
-            />
-            <Field label="Horarios de servicio" className="sm:col-span-2">
-              <Textarea
-                name="horarios"
-                rows={8}
-                defaultValue={s.horarios ?? ""}
-                className="font-mono text-sm"
-                placeholder={"Domingos\n9:00 a. m. — Escuela dominical\n10:00 a. m. — Servicio principal\n\nMiércoles\n7:00 p. m. — Reunión de oración"}
+      {faltan.length > 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          <CircleAlert className="mt-0.5 size-4 shrink-0" />
+          <p>
+            <strong>Sin completar:</strong> {faltan.join(", ")}. No es obligatorio: lo vacío simplemente no aparece en la página.
+          </p>
+        </div>
+      )}
+
+      <Seccion id="contacto" titulo="Contacto y ubicación" descripcion="Se muestra en Contáctanos, en el pie de página y en el botón de WhatsApp." />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Tarjeta
+          icon={Phone}
+          titulo="Cómo comunicarse"
+          accion={
+            <FormDialog title="Cómo comunicarse" action={guardarContactoIglesia} successMessage="Datos de contacto actualizados" trigger={botonEditar}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Teléfono">
+                  <Input name="telefono" type="tel" defaultValue={s.telefono ?? ""} placeholder="Ej: 301 483 9591" />
+                </Field>
+                <Field label="WhatsApp">
+                  <Input name="whatsapp" type="tel" defaultValue={s.whatsapp ?? ""} placeholder="El botón abre el chat" />
+                </Field>
+                <Field label="Correo" className="sm:col-span-2">
+                  <Input name="correo" type="email" defaultValue={s.correo ?? ""} placeholder="Ej: contacto@iccsantafe.com" />
+                </Field>
+                <Field label="Teléfono de emergencias pastorales" className="sm:col-span-2">
+                  <Input name="emergencias" type="tel" defaultValue={s.emergencias ?? ""} placeholder="Vacío = no se muestra" />
+                </Field>
+              </div>
+            </FormDialog>
+          }
+        >
+          <div className="divide-y">
+            <Dato icon={Phone} label="Teléfono" valor={s.telefono} color="bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300" />
+            <Dato icon={MessageCircle} label="WhatsApp" valor={s.whatsapp} color="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" />
+            <Dato icon={Mail} label="Correo" valor={s.correo} color="bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300" />
+            <Dato icon={Siren} label="Emergencias pastorales" valor={s.emergencias} color="bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300" />
+          </div>
+        </Tarjeta>
+
+        <Tarjeta
+          icon={MapPin}
+          titulo="Ubicación"
+          accion={
+            <FormDialog title="Ubicación" action={guardarContactoIglesia} successMessage="Ubicación actualizada" trigger={botonEditar}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Dirección" className="sm:col-span-2">
+                  <Input name="direccion" defaultValue={s.direccion ?? ""} placeholder="Ej: Carrera 43 #16-05 Barrio Santa Fe" />
+                </Field>
+                <Field label="Ciudad" className="sm:col-span-2">
+                  <Input name="ciudad" defaultValue={s.ciudad ?? ""} placeholder="Ej: Santa Marta, Magdalena" />
+                </Field>
+                <Field label="Enlace de Google Maps (opcional)" className="sm:col-span-2">
+                  <Input name="mapaUrl" defaultValue={s.mapaUrl ?? ""} placeholder="https://maps.app.goo.gl/…" />
+                  <p className="text-muted-foreground text-xs">Para el botón “Cómo llegar”. Si lo dejas vacío, se busca la iglesia por su nombre y ciudad.</p>
+                </Field>
+              </div>
+            </FormDialog>
+          }
+        >
+          <div className="grid gap-3">
+            <div>
+              <p className="font-medium">{s.direccion || <span className="text-muted-foreground/70 italic">Sin dirección</span>}</p>
+              <p className="text-muted-foreground text-sm">{s.ciudad || "Sin ciudad"}</p>
+            </div>
+            {consultaMapa && (
+              <iframe
+                title="Mapa de la iglesia"
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(consultaMapa)}&z=16&hl=es&output=embed`}
+                className="h-44 w-full rounded-lg border"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
               />
-              <p className="text-muted-foreground text-xs">
-                Primera línea: el día. Debajo, un horario por línea. Deja una <strong>línea en blanco</strong> entre un día y otro.
-              </p>
-            </Field>
-            <Field label="Facebook">
-              <Input name="facebook" defaultValue={s.facebook ?? ""} placeholder="https://facebook.com/…" />
-            </Field>
-            <Field label="Instagram">
-              <Input name="instagram" defaultValue={s.instagram ?? ""} placeholder="https://instagram.com/…" />
-            </Field>
-            <Field label="YouTube">
-              <Input name="youtube" defaultValue={s.youtube ?? ""} placeholder="https://youtube.com/@…" />
-            </Field>
-            <Field label="TikTok">
-              <Input name="tiktok" defaultValue={s.tiktok ?? ""} placeholder="https://tiktok.com/@…" />
-            </Field>
+            )}
+            <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+              <Navigation className="size-3.5" />
+              {s.mapaUrl ? "“Cómo llegar” usa tu enlace de Google Maps." : "“Cómo llegar” busca la iglesia por nombre y ciudad."}
+            </p>
           </div>
-          <p className="text-muted-foreground text-xs">Lo que dejes vacío no aparece en la página.</p>
-        </FormInline>
-      </Panel>
+        </Tarjeta>
 
-      <Panel title="Página Nosotros">
-        <div id="nosotros" className="scroll-mt-24" />
-        <FormInline action={guardarNosotros} successMessage="Página Nosotros actualizada">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Título principal">
-              <Input name="nosotrosTitulo" defaultValue={s.nosotrosTitulo ?? ""} placeholder="Ej: Nuestra Historia, Nuestra Fe" />
-            </Field>
-            <Field label="Texto de bienvenida" className="sm:col-span-2">
-              <Textarea name="nosotrosTexto" rows={3} defaultValue={s.nosotrosTexto ?? ""} />
-            </Field>
-            <ImagenField
-              actual={s.nosotrosImagenPath ? urlImagen({ imagenPath: s.nosotrosImagenPath, updatedAt: s.updatedAt }) : null}
-              etiqueta="Imagen de fondo del encabezado"
-              ayuda="Horizontal (ej. 1920×800). Sin imagen se usa la foto actual de la congregación."
-            />
-            <Field label="Misión" className="sm:col-span-2">
-              <Textarea name="mision" rows={3} defaultValue={s.mision ?? ""} />
-            </Field>
-            <Field label="Visión" className="sm:col-span-2">
-              <Textarea name="vision" rows={3} defaultValue={s.vision ?? ""} />
-            </Field>
-            <Field label="Valores (uno por línea)" className="sm:col-span-2">
-              <Textarea name="valores" rows={6} defaultValue={s.valores ?? ""} />
-            </Field>
+        <Tarjeta
+          icon={Clock}
+          titulo="Horarios de servicio"
+          accion={
+            <FormDialog title="Horarios de servicio" action={guardarContactoIglesia} successMessage="Horarios actualizados" trigger={botonEditar}>
+              <Field label="Horarios">
+                <Textarea
+                  name="horarios"
+                  rows={10}
+                  defaultValue={s.horarios ?? ""}
+                  className="font-mono text-sm"
+                  placeholder={"Domingos\n9:00 a. m. — Escuela dominical\n10:00 a. m. — Servicio principal\n\nMiércoles\n7:00 p. m. — Reunión de oración"}
+                />
+                <p className="text-muted-foreground text-xs">
+                  Primera línea: el día. Debajo, un horario por línea. Deja una <strong>línea en blanco</strong> entre un día y otro.
+                </p>
+              </Field>
+            </FormDialog>
+          }
+        >
+          {horarios.length === 0 ? (
+            <p className="text-muted-foreground/70 text-sm italic">Sin horarios · la sección no aparece</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {horarios.map((h) => (
+                <div key={h.dia} className="rounded-lg border-l-4 border-violet-500 bg-violet-50/60 px-3 py-2 dark:bg-violet-500/10">
+                  <p className="text-sm font-semibold text-violet-800 dark:text-violet-200">{h.dia}</p>
+                  {h.detalle.map((d) => (
+                    <p key={d} className="text-muted-foreground text-sm">
+                      {d}
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </Tarjeta>
+
+        <Tarjeta
+          icon={Share2}
+          titulo="Redes sociales"
+          accion={
+            <FormDialog title="Redes sociales" action={guardarContactoIglesia} successMessage="Redes actualizadas" trigger={botonEditar}>
+              <div className="grid gap-4">
+                <Field label="Facebook">
+                  <Input name="facebook" defaultValue={s.facebook ?? ""} placeholder="https://facebook.com/…" />
+                </Field>
+                <Field label="Instagram">
+                  <Input name="instagram" defaultValue={s.instagram ?? ""} placeholder="https://instagram.com/…" />
+                </Field>
+                <Field label="YouTube">
+                  <Input name="youtube" defaultValue={s.youtube ?? ""} placeholder="https://youtube.com/@…" />
+                </Field>
+                <Field label="TikTok">
+                  <Input name="tiktok" defaultValue={s.tiktok ?? ""} placeholder="https://tiktok.com/@…" />
+                </Field>
+              </div>
+            </FormDialog>
+          }
+        >
+          <div className="divide-y">
+            {redes.map((r) => (
+              <Dato key={r.label} icon={r.icon} label={r.label} valor={enlaceCorto(r.valor)} color={r.color} />
+            ))}
           </div>
+        </Tarjeta>
+      </div>
+
+      <Seccion id="nosotros" titulo="Página Nosotros" descripcion="Encabezado, misión, visión, valores, cifras, historia y equipo pastoral." />
+
+      {/* Encabezado tal como se ve en /nosotros */}
+      <section className="relative overflow-hidden rounded-2xl border shadow-sm">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={imgNosotros ?? "/images/hero1.jpg"} alt="" className="absolute inset-0 size-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/20" />
+        <div className="relative flex min-h-52 flex-col justify-end gap-2 p-6 text-white">
+          <div className="absolute top-4 right-4">
+            <FormDialog
+              title="Encabezado de Nosotros"
+              action={guardarNosotros}
+              successMessage="Encabezado actualizado"
+              trigger={
+                <Button size="sm" variant="secondary">
+                  <Pencil /> Editar encabezado
+                </Button>
+              }
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Título principal" className="sm:col-span-2">
+                  <Input name="nosotrosTitulo" defaultValue={s.nosotrosTitulo ?? ""} placeholder="Ej: Nuestra Historia, Nuestra Fe" />
+                </Field>
+                <Field label="Texto de bienvenida" className="sm:col-span-2">
+                  <Textarea name="nosotrosTexto" rows={4} defaultValue={s.nosotrosTexto ?? ""} />
+                </Field>
+                <ImagenField actual={imgNosotros} etiqueta="Imagen de fondo" ayuda="Horizontal (ej. 1920×800). Sin imagen se usa la foto actual de la congregación." />
+              </div>
+            </FormDialog>
+          </div>
+          <p className="text-xs font-medium tracking-widest text-white/70 uppercase">Vista previa del encabezado</p>
+          <h3 className="text-2xl font-bold md:text-3xl">{s.nosotrosTitulo || "Nuestra Historia, Nuestra Fe"}</h3>
+          {s.nosotrosTexto && <p className="line-clamp-2 max-w-3xl text-sm text-white/85">{s.nosotrosTexto}</p>}
+        </div>
+      </section>
+
+      <div className="grid gap-5 md:grid-cols-2">
+        {(
+          [
+            { campo: "mision", titulo: "Misión", texto: s.mision, icon: Target },
+            { campo: "vision", titulo: "Visión", texto: s.vision, icon: Eye },
+          ] as const
+        ).map((b) => (
+          <Tarjeta
+            key={b.campo}
+            icon={b.icon}
+            titulo={b.titulo}
+            accion={
+              <FormDialog title={b.titulo} action={guardarNosotros} successMessage={`${b.titulo} actualizada`} trigger={botonEditar}>
+                <Field label={b.titulo}>
+                  <Textarea name={b.campo} rows={6} defaultValue={b.texto ?? ""} />
+                </Field>
+              </FormDialog>
+            }
+          >
+            {b.texto ? (
+              <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-line">{b.texto}</p>
+            ) : (
+              <p className="text-muted-foreground/70 text-sm italic">Sin {b.titulo.toLowerCase()} · no se muestra</p>
+            )}
+          </Tarjeta>
+        ))}
+      </div>
+
+      <Tarjeta
+        icon={Heart}
+        titulo="Valores"
+        accion={
+          <FormDialog title="Valores" action={guardarNosotros} successMessage="Valores actualizados" trigger={botonEditar}>
+            <Field label="Valores (uno por línea)">
+              <Textarea name="valores" rows={8} defaultValue={s.valores ?? ""} placeholder={"Amor\nFe\nServicio"} />
+            </Field>
+          </FormDialog>
+        }
+      >
+        {valores.length === 0 ? (
+          <p className="text-muted-foreground/70 text-sm italic">Sin valores · no se muestran</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {valores.map((v) => (
+              <span key={v} className="rounded-full bg-violet-100 px-3 py-1 text-sm font-medium text-violet-800 dark:bg-violet-500/15 dark:text-violet-200">
+                {v}
+              </span>
+            ))}
+          </div>
+        )}
+      </Tarjeta>
+
+      <Panel>
+        <FormInline action={guardarNosotros} successMessage="Cifras actualizadas">
           <div>
             <p className="mb-2 text-sm font-medium">Cifras destacadas (hasta 4)</p>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

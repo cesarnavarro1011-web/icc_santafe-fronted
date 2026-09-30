@@ -16,16 +16,14 @@ const requestSchema = z.object({
 });
 type RequestData = z.infer<typeof requestSchema>;
 
+// El usuario y el código de los pasos 2 y 3 salen del estado, no del formulario
 const verifySchema = z.object({
-  identifier: z.string().min(1),
-  code: z.string().length(6, "El código debe tener 6 caracteres"),
+  code: z.string().trim().length(6, "El código debe tener 6 dígitos"),
 });
 type VerifyData = z.infer<typeof verifySchema>;
 
 const resetSchema = z
   .object({
-    identifier: z.string().min(1),
-    code: z.string().length(6),
     password: z
       .string()
       .min(8, "Mínimo 8 caracteres")
@@ -45,10 +43,13 @@ function mensajeError(e: unknown, porDefecto: string): string {
 
 interface RecoveryFormProps {
   setFormType: React.Dispatch<React.SetStateAction<"login" | "recovery">>;
+  /** Solo se ofrece WhatsApp si la API de Meta está configurada */
+  whatsapp?: boolean;
 }
 
 export function RecoveryForm({
   setFormType,
+  whatsapp = false,
   className,
   ...props
 }: RecoveryFormProps & React.ComponentPropsWithoutRef<"div">) {
@@ -67,13 +68,11 @@ export function RecoveryForm({
   // Formulario: Paso 2
   const verifyForm = useForm<VerifyData>({
     resolver: zodResolver(verifySchema),
-    defaultValues: { identifier, code },
   });
 
   // Formulario: Paso 3
   const resetForm = useForm<ResetData>({
     resolver: zodResolver(resetSchema),
-    defaultValues: { identifier, code },
   });
 
   const handleRequest = async (data: RequestData) => {
@@ -86,9 +85,14 @@ export function RecoveryForm({
       });
       setIdentifier(data.identifier);
       setStep("verify");
-      toast.success("Solicitud recibida", {
-        description: canal === "whatsapp" ? "Si el usuario tiene celular registrado, le llegará un código por WhatsApp." : "Si el usuario tiene correo registrado, le llegará un código.",
-      });
+      if (canal === "whatsapp") {
+        toast.info("Revisa tu WhatsApp", { description: "Si el usuario tiene celular registrado, le llegará un código de 6 dígitos." });
+      } else {
+        toast.info("Revisa tu correo", {
+          description:
+            "Si el usuario tiene correo registrado, te enviamos un código de 6 dígitos. Puede tardar un par de minutos. Si no lo ves en la bandeja de entrada, revisa la carpeta Spam o Correo no deseado.",
+        });
+      }
     } catch (e) {
       setErrorMessage(mensajeError(e, "Error al solicitar recuperación"));
       toast.error("Error", { description: "Intente nuevamente." });
@@ -101,11 +105,9 @@ export function RecoveryForm({
     setLoading(true);
     setErrorMessage(null);
     try {
-      await axios.post("/api/auth/recovery/verify", {
-        identifier: data.identifier,
-        code: data.code,
-      });
-      setCode(data.code);
+      const codigo = data.code.trim();
+      await axios.post("/api/auth/recovery/verify", { identifier, code: codigo });
+      setCode(codigo);
       setStep("reset");
       toast.success("Código verificado", {
         description: "Ahora establece tu nueva contraseña.",
@@ -123,8 +125,8 @@ export function RecoveryForm({
     setErrorMessage(null);
     try {
       await axios.post("/api/auth/recovery/reset", {
-        identifier: data.identifier,
-        code: data.code,
+        identifier,
+        code,
         password: data.password,
       });
       setStep("done");
@@ -144,7 +146,7 @@ export function RecoveryForm({
     setLoading(true);
     try {
       await axios.post("/api/auth/recovery/resend", { identifier, canal });
-      toast.success("Código reenviado");
+      toast.info("Código reenviado", { description: "Revisa tu bandeja de entrada y también la carpeta Spam o Correo no deseado." });
     } catch {
       toast.error("No se pudo reenviar");
     } finally {
@@ -197,6 +199,7 @@ export function RecoveryForm({
               </p>
             )}
           </div>
+          {whatsapp && (
           <fieldset className="grid gap-2">
             <legend className="mb-2 text-sm font-medium">¿Dónde quieres recibir el código?</legend>
             <div className="grid grid-cols-2 gap-2">
@@ -217,6 +220,7 @@ export function RecoveryForm({
               ))}
             </div>
           </fieldset>
+          )}
           <Button type="submit" disabled={loading}>
             {loading ? "Enviando..." : "Enviar código"}
           </Button>

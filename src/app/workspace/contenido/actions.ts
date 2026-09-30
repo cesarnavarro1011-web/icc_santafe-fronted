@@ -269,7 +269,8 @@ const contactoSchema = z.object({
 export async function guardarContactoIglesia(fd: FormData) {
   return runAction(async () => {
     await requireUser(R.CONTENIDO);
-    const d = contactoSchema.parse(formObj(fd));
+    // Cada tarjeta (identidad, contacto, ubicación, horarios, redes) envía solo sus campos
+    const d = soloEnviados(contactoSchema.partial().parse(formObj(fd)), fd);
     const actual = await prisma.webSitio.findUnique({ where: { id: "principal" } });
     const { imagenPath } = await procesarImagen(fd, "contacto", actual?.contactoImagenPath);
     const data = { ...d, ...(imagenPath !== undefined ? { contactoImagenPath: imagenPath } : {}) };
@@ -277,6 +278,11 @@ export async function guardarContactoIglesia(fd: FormData) {
     refrescarSitio();
     return null;
   });
+}
+
+/** Deja solo los campos que venían en el formulario, para no borrar los de otras tarjetas. */
+function soloEnviados<T extends Record<string, unknown>>(datos: T, fd: FormData): Partial<T> {
+  return Object.fromEntries(Object.entries(datos).filter(([k]) => fd.has(k))) as Partial<T>;
 }
 
 // ── Nosotros: textos, misión, visión, valores y cifras ───────
@@ -292,8 +298,9 @@ const nosotrosSchema = z.object({
 export async function guardarNosotros(fd: FormData) {
   return runAction(async () => {
     await requireUser(R.CONTENIDO);
-    const d = nosotrosSchema.parse(formObj(fd));
-    // Hasta 4 cifras destacadas: valor_1/etiqueta_1 … valor_4/etiqueta_4
+    const d = soloEnviados(nosotrosSchema.parse(formObj(fd)), fd);
+    // Hasta 4 cifras destacadas: valor_1/etiqueta_1 … valor_4/etiqueta_4 (solo si el formulario las trae)
+    const traeCifras = fd.has("valor_1");
     const estadisticas = [1, 2, 3, 4]
       .map((i) => ({ valor: String(fd.get(`valor_${i}`) ?? "").trim(), etiqueta: String(fd.get(`etiqueta_${i}`) ?? "").trim() }))
       .filter((e) => e.valor || e.etiqueta);
@@ -301,7 +308,7 @@ export async function guardarNosotros(fd: FormData) {
 
     const actual = await prisma.webSitio.findUnique({ where: { id: "principal" } });
     const img = await procesarImagen(fd, "nosotros", actual?.nosotrosImagenPath);
-    const data = { ...d, estadisticas, ...("imagenPath" in img ? { nosotrosImagenPath: img.imagenPath } : {}) };
+    const data = { ...d, ...(traeCifras ? { estadisticas } : {}), ...("imagenPath" in img ? { nosotrosImagenPath: img.imagenPath } : {}) };
     await prisma.webSitio.upsert({ where: { id: "principal" }, create: { id: "principal", ...data }, update: data });
     refrescarSitio();
     return null;

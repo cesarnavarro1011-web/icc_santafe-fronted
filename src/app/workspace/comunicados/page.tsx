@@ -46,7 +46,7 @@ export default async function ComunicadosPage() {
               </Button>
             }
           >
-            <ComunicadoFields opciones={opciones} />
+            <ComunicadoFields opciones={opciones} whatsapp={whatsappConfigurado()} />
           </FormDialog>
         }
       />

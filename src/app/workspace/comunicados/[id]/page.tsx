@@ -14,6 +14,7 @@ import { R } from "@/lib/roles";
 import { requirePage } from "@/lib/server/session";
 import { contarDestinatarios, cuerpoHtml, cuerpoTexto, estaProcesando, leerDestinatarios } from "@/server/comunicados";
 import { duplicarComunicado, eliminarComunicado, enviarComunicado, guardarComunicado, reanudarComunicado, reintentarComunicado } from "../actions";
+import { whatsappConfigurado } from "@/lib/server/whatsapp";
 import { ComunicadoFields } from "../comunicado-form";
 import { datosFormulario, describirDestino, opcionesDestino } from "../datos";
 import { AutoRefresco, BotonPrueba } from "./cliente";
@@ -64,7 +65,7 @@ export default async function ComunicadoPage({ params }: { params: Promise<{ id:
                     </Button>
                   }
                 >
-                  <ComunicadoFields c={datos} opciones={opciones} />
+                  <ComunicadoFields c={datos} opciones={opciones} whatsapp={whatsappConfigurado()} />
                 </FormDialog>
                 <ActionButton
                   confirm={`¿Enviar "${c.asunto}" a ${describirDestino(c, opciones).toLowerCase()}? Esta acción no se puede deshacer.`}

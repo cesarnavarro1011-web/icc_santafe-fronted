@@ -10,6 +10,7 @@ import { edad, ESTADO_CIVIL, fecha, isoDate, opciones } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { ROL_LABEL } from "@/lib/roles";
 import { requirePage } from "@/lib/server/session";
+import { whatsappConfigurado } from "@/lib/server/whatsapp";
 import { dosPasosActivo } from "@/server/dos-pasos";
 import { actualizarPerfil, olvidarDispositivos, quitarFirma } from "./actions";
 import { FirmaForm } from "./firma-form";
@@ -136,7 +137,7 @@ export default async function PerfilPage() {
                 <ActionButton
                   size="sm"
                   variant="outline"
-                  confirm="En todos tus dispositivos se volverá a pedir el código de WhatsApp al iniciar sesión."
+                  confirm="En todos tus dispositivos se volverá a pedir el código al iniciar sesión."
                   successMessage="Listo: se pedirá el código en tu próximo inicio de sesión"
                   action={olvidarDispositivos}
                 >
@@ -146,9 +147,15 @@ export default async function PerfilPage() {
             }
           >
             <p className="text-muted-foreground text-sm">
-              Al entrar desde un dispositivo nuevo, o cada 30 días, te enviamos un código por WhatsApp al{" "}
-              <strong className="text-foreground">{f.celular ? `***${f.celular.replace(/\D/g, "").slice(-4)}` : "celular registrado"}</strong>.
-              {!f.celular && " No tienes celular registrado: el código llegará a tu correo."}
+              {whatsappConfigurado() ? (
+                <>
+                  Al entrar desde un dispositivo nuevo, o cada 30 días, te enviamos un código por WhatsApp al{" "}
+                  <strong className="text-foreground">{f.celular ? `***${f.celular.replace(/\D/g, "").slice(-4)}` : "celular registrado"}</strong>.
+                  {!f.celular && " No tienes celular registrado: el código llegará a tu correo."}
+                </>
+              ) : (
+                "Al entrar desde un dispositivo nuevo, o cada 30 días, te enviamos un código a tu correo."
+              )}
             </p>
             {u.dispositivos.length > 0 && (
               <ul className="mt-3 divide-y rounded-lg border text-sm">

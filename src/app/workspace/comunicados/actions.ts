@@ -9,6 +9,7 @@ import { runAction } from "@/lib/server/action";
 import { ErrorNegocio } from "@/lib/server/errors";
 import { formObj, zBool, zTexto, zTextoOpc } from "@/lib/server/form";
 import { requireUser } from "@/lib/server/session";
+import { whatsappConfigurado } from "@/lib/server/whatsapp";
 import { borrarArchivo, guardarArchivo, leerArchivo, leerUpload } from "@/lib/server/storage";
 import { enviarPrueba, estaProcesando, iniciarEnvio, reanudar, reintentarFallidos } from "@/server/comunicados";
 
@@ -33,6 +34,8 @@ const schema = z
     tipoDestino: z.enum(["todos", "rol", "grupo", "curso", "cargo"]),
     valorDestino: zTextoOpc,
   })
+  // Sin la API de WhatsApp configurada, ese canal se ignora
+  .transform((d) => ({ ...d, porWhatsapp: d.porWhatsapp && whatsappConfigurado() }))
   .refine((d) => d.porCorreo || d.porWhatsapp, { message: "Elige al menos un canal: correo o WhatsApp." })
   .refine((d) => d.tipoDestino === "todos" || !!d.valorDestino, { message: "Elige a quién va dirigido." });
 

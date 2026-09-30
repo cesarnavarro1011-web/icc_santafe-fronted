@@ -3,7 +3,7 @@ import { createHash } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { ErrorNegocio } from "@/lib/server/errors";
 import { enviarCorreo, plantillaCorreo } from "@/lib/server/mail";
-import { enviarCodigoWhatsApp } from "@/lib/server/whatsapp";
+import { enviarCodigoWhatsApp, whatsappConfigurado } from "@/lib/server/whatsapp";
 import { codigoOtp, hashPassword, validarPassword } from "@/lib/server/password";
 import { minutosBloqueo, registrarIntento, REGLAS } from "@/lib/server/rate-limit";
 import { buscarUsuarioPor } from "@/lib/server/identificador";
@@ -35,6 +35,8 @@ export type CanalOtp = "correo" | "whatsapp";
  * qué usuarios existen (enumeración de cuentas).
  */
 export async function solicitarOtp(identificador: string, ip: string, canal: CanalOtp = "correo") {
+  // Sin la API de WhatsApp configurada el código siempre va por correo
+  if (!whatsappConfigurado()) canal = "correo";
   const id = identificador.trim().toLowerCase();
   if (!id) throw new ErrorNegocio("Ingresa tu usuario, documento o correo.");
   const claveU = `otp:u:${id}`;

@@ -31,7 +31,7 @@ const TIPOS = [
 ];
 
 /** Campos del comunicado (van dentro de un FormDialog). */
-export function ComunicadoFields({ c, opciones }: { c?: DatosComunicado; opciones: OpcionesDestino }) {
+export function ComunicadoFields({ c, opciones, whatsapp }: { c?: DatosComunicado; opciones: OpcionesDestino; whatsapp: boolean }) {
   const [tipo, setTipo] = useState(c?.tipo ?? "todos");
   const lista = tipo === "todos" ? [] : opciones[tipo as keyof OpcionesDestino];
 
@@ -81,10 +81,12 @@ export function ComunicadoFields({ c, opciones }: { c?: DatosComunicado; opcione
             <input type="checkbox" name="porCorreo" defaultChecked={c?.porCorreo ?? true} className="size-4 accent-violet-600" /> Correo
             (con imágenes y botón)
           </label>
+          {whatsapp && (
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="porWhatsapp" defaultChecked={c?.porWhatsapp ?? false} className="size-4 accent-violet-600" /> WhatsApp
             (solo texto)
           </label>
+          )}
         </div>
       </fieldset>
 
