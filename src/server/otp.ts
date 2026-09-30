@@ -34,7 +34,7 @@ export type CanalOtp = "correo" | "whatsapp";
  * (correo o celular). La respuesta es la misma en todos los casos para no revelar
  * qué usuarios existen (enumeración de cuentas).
  */
-export async function solicitarOtp(identificador: string, ip: string, canal: CanalOtp = "correo") {
+export async function solicitarOtp(identificador: string, ip: string, canal: CanalOtp = "correo", correo = "") {
   // Sin la API de WhatsApp configurada el código siempre va por correo
   if (!whatsappConfigurado()) canal = "correo";
   const id = identificador.trim().toLowerCase();
@@ -52,6 +52,15 @@ export async function solicitarOtp(identificador: string, ip: string, canal: Can
         : "Si el usuario existe y tiene correo registrado, le enviamos un código de 6 dígitos.",
   };
   const usuario = await prisma.usuario.findFirst({ where: buscarUsuarioPor(identificador), include: { fiel: true } });
+
+  // Por correo: el que escribe la persona debe ser el mismo registrado en la cuenta
+  if (canal === "correo") {
+    const escrito = correo.trim().toLowerCase();
+    if (!escrito) throw new ErrorNegocio("Escribe el correo registrado en tu cuenta.");
+    const registrado = usuario?.activo ? usuario.fiel.correo?.trim().toLowerCase() : null;
+    if (!registrado || registrado !== escrito)
+      throw new ErrorNegocio("El correo no coincide con el registrado en esa cuenta. Verifica los datos o comunícate con la iglesia para actualizarlo.");
+  }
   const destino = usuario?.activo ? (canal === "whatsapp" ? usuario.fiel.celular : usuario.fiel.correo)?.trim() : null;
   if (!usuario || !destino) return generico;
 

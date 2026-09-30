@@ -12,7 +12,8 @@ import { toast } from "@/components/workspace/aviso";
 type Step = "request" | "verify" | "reset" | "done";
 
 const requestSchema = z.object({
-  identifier: z.string().min(1, "Ingrese correo o número de identidad"),
+  identifier: z.string().trim().min(1, "Ingresa tu usuario o número de documento"),
+  correo: z.string().trim().optional(),
 });
 type RequestData = z.infer<typeof requestSchema>;
 
@@ -57,6 +58,7 @@ export function RecoveryForm({
   const [loading, setLoading] = useState(false);
   const [identifier, setIdentifier] = useState("");
   const [code, setCode] = useState("");
+  const [correo, setCorreo] = useState("");
   const [canal, setCanal] = useState<"correo" | "whatsapp">("correo");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -76,26 +78,32 @@ export function RecoveryForm({
   });
 
   const handleRequest = async (data: RequestData) => {
+    const correoEscrito = data.correo?.trim() ?? "";
+    if (canal === "correo" && !z.email().safeParse(correoEscrito).success) {
+      requestForm.setError("correo", { message: "Escribe el correo registrado en tu cuenta" });
+      return;
+    }
     setLoading(true);
     setErrorMessage(null);
     try {
       await axios.post("/api/auth/recovery/request", {
         identifier: data.identifier,
+        correo: correoEscrito,
         canal,
       });
       setIdentifier(data.identifier);
+      setCorreo(correoEscrito);
       setStep("verify");
       if (canal === "whatsapp") {
         toast.info("Revisa tu WhatsApp", { description: "Si el usuario tiene celular registrado, le llegará un código de 6 dígitos." });
       } else {
         toast.info("Revisa tu correo", {
-          description:
-            "Si el usuario tiene correo registrado, te enviamos un código de 6 dígitos. Puede tardar un par de minutos. Si no lo ves en la bandeja de entrada, revisa la carpeta Spam o Correo no deseado.",
+          description: `Te enviamos un código de 6 dígitos a ${correoEscrito}. Puede tardar un par de minutos. Si no lo ves en la bandeja de entrada, revisa la carpeta Spam o Correo no deseado.`,
         });
       }
     } catch (e) {
       setErrorMessage(mensajeError(e, "Error al solicitar recuperación"));
-      toast.error("Error", { description: "Intente nuevamente." });
+      toast.error("No se envió el código", { description: mensajeError(e, "Intenta nuevamente.") });
     } finally {
       setLoading(false);
     }
@@ -145,7 +153,7 @@ export function RecoveryForm({
   const resendCode = async () => {
     setLoading(true);
     try {
-      await axios.post("/api/auth/recovery/resend", { identifier, canal });
+      await axios.post("/api/auth/recovery/resend", { identifier, correo, canal });
       toast.info("Código reenviado", { description: "Revisa tu bandeja de entrada y también la carpeta Spam o Correo no deseado." });
     } catch {
       toast.error("No se pudo reenviar");
@@ -164,7 +172,7 @@ export function RecoveryForm({
           {step === "done" && "Proceso completado"}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {step === "request" && "Ingresa tu correo o número de identidad."}
+          {step === "request" && "Escribe tu usuario o documento y el correo que tienes registrado."}
           {step === "verify" &&
             (canal === "whatsapp"
               ? "Si el usuario tiene celular registrado, le enviamos un código de 6 dígitos por WhatsApp."
@@ -184,10 +192,10 @@ export function RecoveryForm({
           className="grid gap-5"
         >
           <div className="grid gap-2">
-            <Label htmlFor="identifier">Correo o Identidad</Label>
+            <Label htmlFor="identifier">Usuario o número de documento</Label>
             <Input
               id="identifier"
-              placeholder="correo@ejemplo.com o número"
+              placeholder="Ej: 1004355591"
               {...requestForm.register("identifier")}
               className={
                 requestForm.formState.errors.identifier ? "border-red-500" : ""
@@ -199,6 +207,20 @@ export function RecoveryForm({
               </p>
             )}
           </div>
+          {canal === "correo" && (
+            <div className="grid gap-2">
+              <Label htmlFor="correo">Correo registrado en tu cuenta</Label>
+              <Input
+                id="correo"
+                type="email"
+                autoComplete="email"
+                placeholder="correo@ejemplo.com"
+                {...requestForm.register("correo")}
+                className={requestForm.formState.errors.correo ? "border-red-500" : ""}
+              />
+              {requestForm.formState.errors.correo && <p className="text-red-500 text-sm">{requestForm.formState.errors.correo.message}</p>}
+            </div>
+          )}
           {whatsapp && (
           <fieldset className="grid gap-2">
             <legend className="mb-2 text-sm font-medium">¿Dónde quieres recibir el código?</legend>

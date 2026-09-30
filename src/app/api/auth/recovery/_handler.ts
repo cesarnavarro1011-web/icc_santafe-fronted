@@ -17,6 +17,7 @@ export async function leerBody(req: Request) {
   return {
     identifier: String(body.identifier ?? ""),
     code: String(body.code ?? ""),
+    correo: String(body.correo ?? ""),
     password: String(body.password ?? ""),
     canal: body.canal === "whatsapp" ? ("whatsapp" as const) : ("correo" as const),
   };
