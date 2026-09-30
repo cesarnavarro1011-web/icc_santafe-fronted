@@ -7,6 +7,7 @@ import {
   Facebook,
   Heart,
   History,
+  Image as ImageIcon,
   Instagram,
   Mail,
   MapPin,
@@ -36,7 +37,7 @@ import { prisma } from "@/lib/prisma";
 import { R } from "@/lib/roles";
 import { requirePage } from "@/lib/server/session";
 import { obtenerSitio, parsearHorarios, urlImagen, type Estadistica } from "@/server/contenido";
-import { guardarContactoIglesia, guardarHistoria, guardarNosotros, guardarPersona } from "../actions";
+import { guardarContactoIglesia, guardarHistoria, guardarImagenLogin, guardarNosotros, guardarPersona } from "../actions";
 import { AccionesContenido, EstadoPublicacionBadge, ImagenField, PublicacionFields } from "../campos";
 
 const SECCIONES = [
@@ -152,6 +153,7 @@ export default async function DatosIglesiaPage() {
   const horarios = parsearHorarios(s.horarios);
   const valores = (s.valores ?? "").split("\n").map((v) => v.trim()).filter(Boolean);
   const imgContacto = s.contactoImagenPath ? urlImagen({ imagenPath: s.contactoImagenPath, updatedAt: s.updatedAt }) : null;
+  const imgLogin = s.loginImagenPath ? urlImagen({ imagenPath: s.loginImagenPath, updatedAt: s.updatedAt }) : null;
   const imgNosotros = s.nosotrosImagenPath ? urlImagen({ imagenPath: s.nosotrosImagenPath, updatedAt: s.updatedAt }) : null;
   const consultaMapa = [s.nombre, s.ciudad].filter(Boolean).join(", ");
 
@@ -421,6 +423,35 @@ export default async function DatosIglesiaPage() {
           </div>
         </Tarjeta>
       </div>
+
+      <Tarjeta
+        icon={ImageIcon}
+        titulo="Pantalla de inicio de sesión"
+        accion={
+          <FormDialog title="Imagen de inicio de sesión" description="Se ve a la derecha del formulario en computadores (en celular no aparece)." action={guardarImagenLogin} successMessage="Imagen de inicio de sesión actualizada" trigger={botonEditar}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ImagenField actual={imgLogin} etiqueta="Imagen de inicio de sesión" ayuda="Vertical o cuadrada (ej. 1200×1400). Sin imagen se usa la foto actual de la congregación." />
+            </div>
+          </FormDialog>
+        }
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          {/* Miniatura: formulario a la izquierda, imagen a la derecha, como en /login */}
+          <div className="grid h-32 w-full max-w-64 shrink-0 grid-cols-2 overflow-hidden rounded-lg border">
+            <div className="bg-background flex flex-col justify-center gap-1.5 p-3">
+              <span className="bg-muted h-2 w-3/4 rounded" />
+              <span className="bg-muted h-3 rounded" />
+              <span className="bg-muted h-3 rounded" />
+              <span className="h-3 rounded bg-violet-500/70" />
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imgLogin ?? "/images/DSC00630.jpg"} alt="" className="size-full object-cover" />
+          </div>
+          <p className="text-muted-foreground text-sm">
+            {imgLogin ? "Usando tu imagen." : "Usando la foto predeterminada de la congregación."} Aparece al lado del formulario en /login.
+          </p>
+        </div>
+      </Tarjeta>
 
       <Seccion id="nosotros" titulo="Página Nosotros" descripcion="Encabezado, misión, visión, valores, cifras, historia y equipo pastoral." />
 

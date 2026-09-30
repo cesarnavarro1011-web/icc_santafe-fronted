@@ -836,6 +836,7 @@ model WebSitio {
   nosotrosTexto      String?
   nosotrosImagenPath String?
   contactoImagenPath String? // fondo del encabezado de Contáctanos
+  loginImagenPath    String? // imagen del lado derecho del inicio de sesión
   mision             String?
   vision             String?
   valores            String? // uno por línea

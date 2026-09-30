@@ -11,7 +11,7 @@ import { ErrorNegocio } from "@/lib/server/errors";
 import { formObj, zBool, zTexto, zTextoOpc } from "@/lib/server/form";
 import { requireUser } from "@/lib/server/session";
 import { borrarArchivo, guardarArchivo, leerUpload } from "@/lib/server/storage";
-import { idVimeo, idYoutube } from "@/server/contenido";
+import { idVimeo, idYoutube, obtenerSitio } from "@/server/contenido";
 
 // ── Utilidades ───────────────────────────────────────────────
 
@@ -275,6 +275,21 @@ export async function guardarContactoIglesia(fd: FormData) {
     const { imagenPath } = await procesarImagen(fd, "contacto", actual?.contactoImagenPath);
     const data = { ...d, ...(imagenPath !== undefined ? { contactoImagenPath: imagenPath } : {}) };
     await prisma.webSitio.upsert({ where: { id: "principal" }, create: { id: "principal", ...data }, update: data });
+    refrescarSitio();
+    return null;
+  });
+}
+
+// ── Imagen del inicio de sesión ──────────────────────────────
+
+export async function guardarImagenLogin(fd: FormData) {
+  return runAction(async () => {
+    await requireUser(R.CONTENIDO);
+    const actual = await obtenerSitio();
+    const { imagenPath } = await procesarImagen(fd, "login", actual.loginImagenPath);
+    if (imagenPath === undefined) throw new ErrorNegocio("Elige una imagen o marca “Quitar imagen”.");
+    await prisma.webSitio.update({ where: { id: "principal" }, data: { loginImagenPath: imagenPath } });
+    revalidatePath("/login");
     refrescarSitio();
     return null;
   });
