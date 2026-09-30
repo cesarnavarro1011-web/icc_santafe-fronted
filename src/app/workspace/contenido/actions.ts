@@ -549,3 +549,14 @@ export async function cambiarEnVivo(activo: boolean) {
     return null;
   });
 }
+
+// ── Mensajes de contacto (bandeja) ───────────────────────────
+
+export async function actualizarMensaje(id: string, cambios: { leido?: boolean; archivado?: boolean }) {
+  return runAction(async () => {
+    await requireUser(R.CONTENIDO);
+    await prisma.mensajeContacto.update({ where: { id }, data: { leido: cambios.leido, archivado: cambios.archivado } });
+    revalidatePath("/workspace/contenido/mensajes");
+    return null;
+  });
+}

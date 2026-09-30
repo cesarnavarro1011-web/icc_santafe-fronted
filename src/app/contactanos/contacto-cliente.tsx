@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState, useTransition, type ReactNode } from 'react';
+import { enviarMensajeContacto } from '@/app/acciones-publicas';
 import Header from '@/components/layout/Header';
 import {
   Phone,
@@ -32,7 +33,7 @@ export default function ContactoCliente({ sitio, footer }: { sitio: SitioPublico
     message: '',
     type: 'general' // general, prayer, counseling, event
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, startTransition] = useTransition();
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const contactReasons = [
@@ -62,19 +63,25 @@ export default function ContactoCliente({ sitio, footer }: { sitio: SitioPublico
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Se guarda en la bandeja del panel y el servidor avisa al WhatsApp/correo de la iglesia
+  const [error, setError] = useState('');
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsSubmitting(true);
-
-    try {
-      // Aquí iría la lógica para enviar los datos al backend
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    const fd = new FormData();
+    fd.set('nombre', formData.name);
+    fd.set('correo', formData.email);
+    fd.set('telefono', formData.phone);
+    fd.set('asunto', formData.subject);
+    fd.set('mensaje', formData.message);
+    fd.set('motivo', contactReasons.find((r) => r.value === formData.type)?.label ?? 'Consulta');
+    fd.set('sitio', String(new FormData(e.currentTarget).get('sitio') ?? ''));
+    setError('');
+    startTransition(async () => {
+      const res = await enviarMensajeContacto(fd);
+      if (!res.success) return void setError(res.error);
+      setFormData({ name: '', email: '', phone: '', subject: '', message: '', type: 'general' });
       setIsSubmitted(true);
-    } catch (error) {
-      console.error('Error al enviar el formulario:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
+    });
   };
 
   if (isSubmitted) {
@@ -87,11 +94,16 @@ export default function ContactoCliente({ sitio, footer }: { sitio: SitioPublico
               <div className="bg-white rounded-lg shadow-md p-8">
                 <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-6" />
                 <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                  ¡Mensaje Enviado!
+                  ¡Mensaje enviado!
                 </h1>
                 <p className="text-lg text-gray-600 mb-6">
-                  Gracias por contactarnos. Hemos recibido tu mensaje y nos pondremos en contacto contigo pronto.
+                  Gracias por escribirnos. Tu mensaje ya le llegó al equipo de la iglesia y te responderemos pronto.
                 </p>
+                <div className="mb-6">
+                  <button type="button" onClick={() => setIsSubmitted(false)} className="text-sm text-gray-500 underline underline-offset-4">
+                    Enviar otro mensaje
+                  </button>
+                </div>
                   <Link
                     href="/"
                     className="bg-blue-600 text-white px-8 py-3 rounded-full font-semibold hover:bg-blue-700 transition-colors duration-200 inline-block"
@@ -246,6 +258,9 @@ export default function ContactoCliente({ sitio, footer }: { sitio: SitioPublico
                       />
                     </div>
 
+                    {/* Campo trampa para bots (los humanos no lo ven) */}
+                    <input type="text" name="sitio" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
+                    {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
                     <button
                       type="submit"
                       disabled={isSubmitting}
@@ -259,7 +274,7 @@ export default function ContactoCliente({ sitio, footer }: { sitio: SitioPublico
                       ) : (
                         <>
                           <Send className="h-5 w-5" />
-                          <span>Enviar Mensaje</span>
+                          <span>Enviar mensaje</span>
                         </>
                       )}
                     </button>

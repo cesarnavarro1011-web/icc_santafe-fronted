@@ -63,7 +63,8 @@ export function FormDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className={cn("sm:max-w-xl", className)}>
+      {/* Sin descripción se avisa a Radix con aria-describedby={undefined} (evita la advertencia en consola) */}
+      <DialogContent className={cn("sm:max-w-xl", className)} {...(description ? {} : { "aria-describedby": undefined })}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}

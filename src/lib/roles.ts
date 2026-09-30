@@ -122,6 +122,7 @@ export const NAV: NavSection[] = [
       { href: "/workspace/contenido/predicas", label: "Prédicas", icon: "video", roles: R.CONTENIDO },
       { href: "/workspace/contenido/ministerios", label: "Ministerios", icon: "heart-handshake", roles: R.CONTENIDO },
       { href: "/workspace/contenido/peticiones", label: "Peticiones de oración", icon: "hand-heart", roles: R.CONTENIDO },
+      { href: "/workspace/contenido/mensajes", label: "Mensajes de contacto", icon: "inbox", roles: R.CONTENIDO },
     ],
   },
   {

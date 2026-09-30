@@ -918,3 +918,20 @@ model PlantillaCertificado {
   prefijoCodigo    String? // prefijo del código de registro (vacío = "ICCSF")
   updatedAt        DateTime @updatedAt
 }
+
+/// Mensajes del formulario de Contáctanos (bandeja del Gestor de contenido)
+model MensajeContacto {
+  id         String   @id @default(cuid())
+  nombre     String
+  correo     String?
+  telefono   String?
+  motivo     String
+  asunto     String?
+  mensaje    String
+  leido      Boolean  @default(false)
+  archivado  Boolean  @default(false)
+  notificado Boolean  @default(false) // se avisó al WhatsApp o correo de la iglesia
+  createdAt  DateTime @default(now())
+
+  @@index([archivado, createdAt])
+}

@@ -23,6 +23,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://i.ytimg.com", // miniaturas de prédicas
   "font-src 'self' data:",
+  "frame-src 'self' https://maps.google.com https://www.google.com", // mapa en Datos de la iglesia
   `connect-src 'self'${dev ? " ws: wss:" : ""}`,
   "frame-ancestors 'none'",
   "form-action 'self'",
