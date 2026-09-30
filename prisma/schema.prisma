@@ -908,5 +908,6 @@ model PlantillaCertificado {
   cargoPastor      String?
   logoPath         String? // vacío = logo de la iglesia
   selloPath        String?
+  prefijoCodigo    String? // prefijo del código de registro (vacío = "ICCSF")
   updatedAt        DateTime @updatedAt
 }

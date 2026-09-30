@@ -125,7 +125,12 @@ Menú **Académico → Plantilla de certificado** (pastor y superadmin), o el bo
 sello, la institución, el subtítulo, el título, los textos, el versículo (se puede ocultar), el lugar y el cargo que va
 debajo de cada firma (profesor, supervisor y pastor), con vista previa del PDF al guardar. Lo que se deja vacío usa el
 texto por defecto. El PDF se genera solo con la firma final del pastor, con los nombres y las firmas digitales (Perfil)
-de quienes aprobaron. Los certificados ya emitidos conservan el diseño con el que se generaron.
+de quienes aprobaron. Los certificados ya emitidos conservan el diseño con el que se generaron (botón Regenerar en Certificados).
+
+**Código de registro y QR:** al emitir se asigna `PREFIJO-AÑO-CONSECUTIVO-VERIFICADOR` (ej. `ICCSF-2026-0001-D6`); el consecutivo
+se reinicia cada año y los 2 últimos caracteres detectan códigos mal escritos o inventados. El prefijo se edita en la plantilla.
+El QR del PDF abre la página pública `/verificar/<código>`, que muestra si es válido o anulado, a quién se otorgó, el curso y la fecha.
+En producción: `NEXTAUTH_URL` con el dominio real y `CERTIFICADOS_SECRET` fijo.
 
 ## Página web pública
 

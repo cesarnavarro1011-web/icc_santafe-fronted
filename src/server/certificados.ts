@@ -1,15 +1,17 @@
 import "server-only";
 import { readFile } from "fs/promises";
 import path from "path";
+import QRCode from "qrcode";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import { prisma } from "@/lib/prisma";
 import { ACADEMICO, NOMBRE_IGLESIA } from "@/lib/config";
 import { R, tieneRol } from "@/lib/roles";
 import { ErrorNegocio } from "@/lib/server/errors";
-import { enviarCorreo, esc, plantillaCorreo } from "@/lib/server/mail";
+import { enviarCorreo, esc, plantillaCorreo, urlSitio } from "@/lib/server/mail";
 import type { UsuarioSesion } from "@/lib/server/session";
 import { carpetaFiel, guardarArchivo, leerArchivo, tipoReal } from "@/lib/server/storage";
 import { asistenciaEstudiante, exigirCursoEnAlcance } from "./academico";
+import { asignarCodigoRegistro, codigoEjemplo, normalizarPrefijo } from "./codigo-certificado";
 import { nuevoCodigo } from "./codigos";
 
 // Flujo (igual al sistema anterior, con el Supervisor en lugar del Líder):
@@ -93,10 +95,20 @@ export async function generarPdfDeCertificado(certificadoId: string) {
     include: { usuario: { select: { firmaPath: true } } },
   });
   const firmante = (id: string | null) => firmantes.find((f) => f.id === id);
+  // Firma del pastor sin firmante registrado (datos migrados o de prueba): se usa el pastor activo
+  const pastor =
+    firmante(c.firmaPastorId) ??
+    (await prisma.fiel.findFirst({
+      where: { usuario: { rol: "PASTOR", activo: true } },
+      include: { usuario: { select: { firmaPath: true } } },
+      orderBy: { createdAt: "asc" },
+    })) ??
+    undefined;
 
   const plantilla = await plantillaResuelta();
   const pdf = await generarPdfCertificado({
     codigo: c.codigo,
+    urlVerificacion: urlVerificacion(c.codigo),
     estudiante: `${c.fiel.nombre} ${c.fiel.apellido}`,
     curso: c.curso.nombre,
     fecha: c.emitidoAt ?? new Date(),
@@ -104,7 +116,7 @@ export async function generarPdfDeCertificado(certificadoId: string) {
     firmas: [
       { rol: plantilla.cargos.maestro, fiel: firmante(c.firmaMaestroId) },
       { rol: plantilla.cargos.supervisor, fiel: firmante(c.firmaSupervisorId) },
-      { rol: plantilla.cargos.pastor, fiel: firmante(c.firmaPastorId) },
+      { rol: plantilla.cargos.pastor, fiel: pastor },
     ].map(({ rol, fiel }) => ({
       rol,
       nombre: fiel ? `${fiel.nombre} ${fiel.apellido}` : "",
@@ -121,6 +133,8 @@ export async function generarPdfDeCertificado(certificadoId: string) {
 }
 
 async function emitirCertificado(certificadoId: string) {
+  // Código definitivo (ICCSF-2026-0001-K7) antes de generar el PDF
+  await asignarCodigoRegistro(certificadoId, (await obtenerPlantillaCertificado()).prefijoCodigo);
   const { c, pdf } = await generarPdfDeCertificado(certificadoId);
 
   if (c.fiel.correo) {
@@ -166,6 +180,7 @@ export type PlantillaResuelta = {
   cargos: { maestro: string; supervisor: string; pastor: string };
   logoPath: string | null;
   selloPath: string | null;
+  prefijo: string;
 };
 
 export async function obtenerPlantillaCertificado() {
@@ -195,6 +210,7 @@ export async function plantillaResuelta(): Promise<PlantillaResuelta> {
     },
     logoPath: p.logoPath,
     selloPath: p.selloPath,
+    prefijo: normalizarPrefijo(p.prefijoCodigo),
   };
 }
 
@@ -202,7 +218,8 @@ export async function plantillaResuelta(): Promise<PlantillaResuelta> {
 export async function vistaPreviaCertificado() {
   const p = await plantillaResuelta();
   return generarPdfCertificado({
-    codigo: "CERT-EJEMPLO",
+    codigo: codigoEjemplo(p.prefijo),
+    urlVerificacion: urlVerificacion(codigoEjemplo(p.prefijo)),
     estudiante: "Nombre y Apellidos del Estudiante",
     curso: "Nombre del Curso o Programa",
     fecha: new Date(),
@@ -217,7 +234,14 @@ export async function vistaPreviaCertificado() {
 
 // ── PDF ──────────────────────────────────────────────────────
 
+/** Página pública donde cualquiera comprueba el certificado (lo abre el QR). */
+export function urlVerificacion(codigo: string) {
+  return urlSitio(`/verificar/${encodeURIComponent(codigo)}`);
+}
+
 type DatosPdf = {
+  /** Si viene, se imprime un QR que abre esta dirección */
+  urlVerificacion?: string;
   codigo: string;
   estudiante: string;
   curso: string;
@@ -430,6 +454,18 @@ export async function generarPdfCertificado(d: DatosPdf) {
   pie("Fecha de emisión", fechaLarga, 80, "izq");
   pie("Lugar", p.lugar, cx, "centro");
   pie("Código de registro", d.codigo, width - 80, "der");
+
+  // QR de verificación en la esquina superior derecha
+  if (d.urlVerificacion) {
+    const png = await QRCode.toBuffer(d.urlVerificacion, { type: "png", margin: 1, width: 320, errorCorrectionLevel: "M", color: { dark: "#1e3a5f", light: "#ffffff" } });
+    const qr = await doc.embedPng(png);
+    const lado = 62;
+    const x0 = width - 52 - lado;
+    const y0 = height - 52 - lado;
+    page.drawImage(qr, { x: x0, y: y0, width: lado, height: lado });
+    const etiqueta = "Verificar certificado";
+    page.drawText(etiqueta, { x: x0 + lado / 2 - serif.widthOfTextAtSize(etiqueta, 6.5) / 2, y: y0 - 9, size: 6.5, font: serif, color: GRIS });
+  }
 
   return doc.save();
 }

@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { R } from "@/lib/roles";
 import { requirePage } from "@/lib/server/session";
 import { CERT_DEFECTO, obtenerPlantillaCertificado } from "@/server/certificados";
+import { codigoEjemplo, PREFIJO_DEFECTO } from "@/server/codigo-certificado";
 import { guardarPlantillaCertificado } from "./actions";
 
 function CampoImagen({ nombre, etiqueta, actual, defecto, ayuda }: { nombre: "logo" | "sello"; etiqueta: string; actual: string | null; defecto?: string; ayuda: string }) {
@@ -119,10 +120,20 @@ export default async function PlantillaCertificadoPage() {
               </Field>
             </div>
 
-            <p className="text-muted-foreground border-t pt-4 text-xs font-semibold uppercase">Pie</p>
-            <Field label="Lugar">
-              <Input name="lugar" defaultValue={p.lugar ?? ""} placeholder={sitio?.ciudad ? `${sitio.ciudad}, Colombia` : "Ciudad, país"} />
-            </Field>
+            <p className="text-muted-foreground border-t pt-4 text-xs font-semibold uppercase">Pie y código de registro</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Lugar">
+                <Input name="lugar" defaultValue={p.lugar ?? ""} placeholder={sitio?.ciudad ? `${sitio.ciudad}, Colombia` : "Ciudad, país"} />
+              </Field>
+              <Field label="Prefijo del código">
+                <Input name="prefijoCodigo" defaultValue={p.prefijoCodigo ?? ""} placeholder={PREFIJO_DEFECTO} maxLength={10} className="font-mono uppercase" />
+              </Field>
+            </div>
+            <p className="text-muted-foreground -mt-2 text-xs">
+              Formato: prefijo, año, consecutivo (se reinicia cada año) y 2 caracteres de verificación. Ejemplo:{" "}
+              <span className="text-foreground font-mono">{codigoEjemplo(p.prefijoCodigo)}</span>. El código se asigna con la firma del pastor y el QR
+              del certificado abre la página pública de verificación.
+            </p>
           </FormInline>
         </Panel>
 

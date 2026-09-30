@@ -24,6 +24,7 @@ const schema = z.object({
   cargoMaestro: zTextoOpc,
   cargoSupervisor: zTextoOpc,
   cargoPastor: zTextoOpc,
+  prefijoCodigo: zTextoOpc.transform((p) => (p ? p.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10) || null : null)),
 });
 
 /** Sube (o quita) el logo o el sello. PNG o JPG: son los formatos que acepta el PDF. */
